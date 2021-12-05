@@ -10,15 +10,15 @@
 #define __HL5__H
 
 #include <systemc.h>
-#include "cynw_flex_channels.h"
+#include <connections/connections.h>
 
 #include "hl5_datatypes.hpp"
 #include "defines.hpp"
 #include "globals.hpp"
 
-#include "fedec_wrap.h"
-#include "execute_wrap.h"
-#include "memwb_wrap.h"
+#include "fedec.hpp"
+#include "execute.hpp"
+#include "memwb.hpp"
 
 SC_MODULE(hl5)
 {
@@ -48,9 +48,9 @@ public:
 	sc_out < long int > o_icount; 
 
 	// Inter-stage Flex Channels.
-	put_get_channel< de_out_t > de2exe_ch;
-	put_get_channel< mem_out_t > wb2de_ch; // Writeback loop
-	put_get_channel< exe_out_t > exe2mem_ch;
+	Connections::Combinational< de_out_t > de2exe_ch;
+	Connections::Combinational< mem_out_t > wb2de_ch; // Writeback loop
+	Connections::Combinational< exe_out_t > exe2mem_ch;
 
 	// Forwarding
 	sc_signal< reg_forward_t > fwd_exe_ch;
@@ -108,9 +108,9 @@ public:
 	}
 
 	// Instantiate the modules
-	fedec_wrapper fede;
-	execute_wrapper exe;
-	memwb_wrapper mewb;
+	fedec fede;
+	execute exe;
+	memwb mewb;
 };
 
 #endif  // end __HL5__H

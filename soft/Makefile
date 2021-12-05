@@ -17,7 +17,7 @@ OBJDUMP = $(CROSS_COMPILE)objdump
 OBJCOPY = $(CROSS_COMPILE)objcopy
 
 CFLAGS ?=
-CFLAGS += -O2 -march=rv32ima
+CFLAGS += -O2 -march=rv32im
 
 BOOT_OBJS = crt.o syscalls.o
 

@@ -1,0 +1,72 @@
+
+hello.elf:     file format elf32-littleriscv
+architecture: riscv:rv32, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED
+start address 0x00000000
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00002537          	lui	a0,0x2
+   4:	71050513          	addi	a0,a0,1808 # 2710 <array+0x26d8>
+   8:	00050113          	mv	sp,a0
+   c:	008000ef          	jal	ra,14 <notmain>
+
+00000010 <hang>:
+  10:	0000006f          	j	10 <hang>
+
+00000014 <notmain>:
+  14:	03800793          	li	a5,56
+  18:	01078613          	addi	a2,a5,16
+  1c:	0007a683          	lw	a3,0(a5)
+  20:	0047a703          	lw	a4,4(a5)
+  24:	00478793          	addi	a5,a5,4
+  28:	02d74733          	div	a4,a4,a3
+  2c:	fee7ae23          	sw	a4,-4(a5)
+  30:	fec796e3          	bne	a5,a2,1c <notmain+0x8>
+  34:	00008067          	ret
+
+Disassembly of section .data:
+
+00000038 <array>:
+  38:	000a                	c.slli	zero,0x2
+  3a:	0000                	unimp
+  3c:	03e8                	addi	a0,sp,460
+  3e:	0000                	unimp
+  40:	2710                	fld	fa2,8(a4)
+  42:	0000                	unimp
+  44:	03e8                	addi	a0,sp,460
+  46:	0000                	unimp
+  48:	2710                	fld	fa2,8(a4)
+	...
+
+Disassembly of section .riscv.attributes:
+
+00000000 <.riscv.attributes>:
+   0:	1e41                	addi	t3,t3,-16
+   2:	0000                	unimp
+   4:	7200                	flw	fs0,32(a2)
+   6:	7369                	lui	t1,0xffffa
+   8:	01007663          	bgeu	zero,a6,14 <notmain>
+   c:	0014                	0x14
+   e:	0000                	unimp
+  10:	7205                	lui	tp,0xfffe1
+  12:	3376                	fld	ft6,376(sp)
+  14:	6932                	flw	fs2,12(sp)
+  16:	7032                	flw	ft0,44(sp)
+  18:	5f30                	lw	a2,120(a4)
+  1a:	326d                	jal	fffff9c4 <array+0xfffff98c>
+  1c:	3070                	fld	fa2,224(s0)
+	...
+
+Disassembly of section .comment:
+
+00000000 <.comment>:
+   0:	3a434347          	fmsub.d	ft6,ft6,ft4,ft7,rmm
+   4:	2820                	fld	fs0,80(s0)
+   6:	29554e47          	fmsub.s	ft8,fa0,fs5,ft5,rmm
+   a:	3820                	fld	fs0,112(s0)
+   c:	322e                	fld	ft4,232(sp)
+   e:	302e                	fld	ft0,232(sp)
+	...

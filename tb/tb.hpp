@@ -10,9 +10,7 @@
 
 #include <time.h>
 #include <systemc.h>
-#include "cynw_flex_channels.h"
-
-#include <esc.h>
+#include <connections/connections.h>
 
 #include "hl5_datatypes.hpp"
 
@@ -74,7 +72,8 @@ public:
 	void source();
 	void sink();
 
-        double exec_start;
+    double exec_start;
+	const char * const *argv = sc_argv();
 	// double exec_main_start;
 };
 

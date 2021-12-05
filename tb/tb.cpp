@@ -22,35 +22,41 @@ void tb::source()
 	SC_REPORT_INFO(sc_object::name(), "Done reset.");
 	cpu_rst = 1;
 
-	// Printing HLS config
-	std::cout << "HLS config is: " << esc_argv(2) << std::endl;
+	// Printing HLS config (not needed if compiled and ran outside of HLS tool)
+	//std::cout << "HLS config is: " << argv << std::endl;
 
 	// Init imem
 	// DBG_PROG;
 	std::stringstream stm;
-	stm << "Loading program from " << esc_argv(1) << "...";
+	stm << "Loading program from " << argv[1] << "...";
 	SC_REPORT_INFO(sc_object::name(), stm.str().c_str());
+	
+	std::ofstream initial_dmem;
+	initial_dmem.open("initial_dmem.txt", std::ofstream::out | std::ofstream::trunc);
 
 	std::ifstream dbg_prog;
-	dbg_prog.open(esc_argv(1), std::ifstream::in);
-
+	dbg_prog.open(argv[1], std::ifstream::in);
+	std::cout << "Initial memory (imem)" << std::endl;
 	unsigned index;
 	unsigned address;
 
         while (dbg_prog >> std::hex >> address) {
             index = address >> 2;
+			
             if (index >= ICACHE_SIZE) {
                 SC_REPORT_ERROR(sc_object::name(), "Program larger than memory size.");
                 sc_stop();
                 return;
             }
+
             dbg_prog >> std::hex >> imem[index];
+			//std::cout << index << '\t' <<imem[index] << std::endl;
             dmem[index] = imem[index];
+			initial_dmem << hex << "Address: " << index << "\tData: " << dmem[index] << std::endl;
         }
 
-
 	dbg_prog.close();
-
+	initial_dmem.close();
 	// Set entry point
 	entry_point.write(0xfffffffc);
 
@@ -61,7 +67,7 @@ void tb::source()
 	fetch_en = 1;
 
 	// Record start time
-	exec_start = esc_normalize_to_ps(sc_time_stamp()) / 1000;
+	//exec_start = esc_normalize_to_ps(sc_time_stamp()) / 1000;
 
 	// do { wait(); } while (!main_start.read());
 
@@ -74,7 +80,7 @@ void tb::source()
 
 // Read all the expected values from the design
 void tb::sink()
-{
+{	
 	// do { wait(); } while (!main_end.read());
 
 	// // Record start time
@@ -84,10 +90,10 @@ void tb::sink()
 	do { wait(); } while (!program_end.read());
 
 	// Record end time
-	double exec_end = esc_normalize_to_ps(sc_time_stamp()) / 1000;
+	//double exec_end = esc_normalize_to_ps(sc_time_stamp()) / 1000;
 
 	// double elapsed_main_time_ns = exec_main_end - exec_main_start;
-	double elapsed_time_ns = exec_end - exec_start;
+	//double elapsed_time_ns = exec_end - exec_start;
 
 	long icount_end, j_icount_end, b_icount_end, m_icount_end, o_icount_end;
 
@@ -99,7 +105,7 @@ void tb::sink()
 
 	SC_REPORT_INFO(sc_object::name(), "Program complete.");
 
-	std::cout << "Elapsed time: " << elapsed_time_ns << " ns." << std::endl;
+	//std::cout << "Elapsed time: " << elapsed_time_ns << " ns." << std::endl;
 	// std::cout << "Elapsed main time: " << elapsed_main_time_ns << " ns." << std::endl;
 	std::cout << "INSTR TOT: " << icount_end << std::endl;
 	std::cout << "   JUMP  : " << j_icount_end << std::endl;
@@ -107,8 +113,11 @@ void tb::sink()
 	std::cout << "   MEM   : " << m_icount_end << std::endl;
 	std::cout << "   OTHER : " << o_icount_end << std::endl;
 
-	// // Verify correctness of program
-	// int is_check1_passed = 0, is_check2_passed = 0, is_check_failed = 0, is_test_passed = 0;
+// 	// Verify correctness of program
+// 	int is_check1_passed = 0, is_check2_passed = 0, is_check_failed = 0, is_test_passed = 0;
+
+// 	std::ofstream report_dmem;
+// 	report_dmem.open("report_dmem.txt", std::ofstream::out | std::ofstream::app);
 
 // 	for (int i = 0; i < DCACHE_SIZE - 1; i++) {
 // #ifndef VERBOSE
@@ -119,9 +128,10 @@ void tb::sink()
 // 		    dmem[i] == 0x12345678 ||
 // 		    dmem[i] == 0x87654321) {
 // #endif
-// 			std::cout << hex << "Address: " << i << "\tData: " 
-// 				  << dmem[i] << std::endl;
-			
+// 			// std::cout << hex << "Address: " << i << "\tData: " 
+// 			// 	  << dmem[i] << std::endl;
+	// 			report_dmem << hex << "Address: " << i << "\tData: " 
+	// 				  << dmem[i] << std::endl;
 // 			if (dmem[i] == 0x11223344)
 // 				is_check1_passed = 1;
 // 			else if (dmem[i] == 0x12345678)
@@ -134,20 +144,21 @@ void tb::sink()
 // #endif
 // 	}
 
-	// if (is_check1_passed && is_check2_passed && !is_check_failed)
-	// 	is_test_passed = 1;
+// 	if (is_check1_passed && is_check2_passed && !is_check_failed)
+// 		is_test_passed = 1;
 
 	// Write report to file
 	std::ofstream report;
-	report.open(esc_argv(3), std::ofstream::out | std::ofstream::app);
-
+	//report.open(esc_argv(3), std::ofstream::out | std::ofstream::app);
+	report.open(argv[2], std::ofstream::out | std::ofstream::app);
+	//std::cout << "Program: " << argv[1] << "\t" << "Test passed: " << is_test_passed << std::endl; 
 	// report << "Program: " << esc_argv(1) << "\t Config: " << esc_argv(2) <<
 	// 	"\t Time: " << elapsed_time_ns << "\t Main time: " << elapsed_main_time_ns << 
 	//  	" ns.\tTest passed: " << is_test_passed << std::endl;
 
-	report << "Program: " << esc_argv(1) << "\t Config: " << esc_argv(2) <<
-		"\t Time: " << elapsed_time_ns // << "\t Main time: " << elapsed_main_time_ns
-               << std::endl;
+	//report << "Program: " << esc_argv(1) << "\t Config: " << esc_argv(2) <<
+	//	"\t Time: " << elapsed_time_ns // << "\t Main time: " << elapsed_main_time_ns
+    //           << std::endl;
 
 	report << "INSTR TOT: " << icount_end << std::endl;
 	report << "   JUMP  : " << j_icount_end << std::endl;
@@ -156,7 +167,17 @@ void tb::sink()
 	report << "   OTHER : " << o_icount_end << std::endl;
 
 	report.close();
+	
 
-    	esc_stop();
+    sc_stop();
+
+	std::ofstream report_dmem;
+	report_dmem.open("report_dmem.txt", std::ofstream::out | std::ofstream::trunc);
+
+	for (int i = 0; i < DCACHE_SIZE - 1; i++) {
+		report_dmem << hex << "Address: " << i << "\tData: " << dmem[i] << std::endl;
+	}
+	report_dmem.close();
+
 }
 

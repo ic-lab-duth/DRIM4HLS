@@ -9,21 +9,22 @@
 #define __FEDEC__H
 
 #include <systemc.h>
-
-#include "cynw_flex_channels.h"
+#include <bitset>
+#include <connections/connections.h>
 
 #include "defines.hpp"
 #include "globals.hpp"
 #include "syn_directives.hpp"
 #include "hl5_datatypes.hpp"
 
+#include "fedec.hpp"
 
 SC_MODULE(fedec)
 {
 public:
 	// FlexChannel initiators
-	put_initiator< de_out_t > dout;
-	get_initiator< mem_out_t > feed_from_wb;
+	Connections::Out< de_out_t > dout;
+	Connections::In< mem_out_t > feed_from_wb;
 
 	// Forward
 	sc_in< reg_forward_t > fwd_exe;
@@ -88,12 +89,7 @@ public:
 	{
 		SC_CTHREAD(fedec_th, clk.pos());
 		reset_signal_is(rst, false);
-		dout.clk_rst(clk, rst);
-		feed_from_wb.clk_rst(clk, rst);
 
-		FLAT_REGFILE;
-		FLAT_SENTINEL;
-		MAP_ICACHE;
 	}
 
 

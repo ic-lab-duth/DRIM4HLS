@@ -7,6 +7,22 @@
 
 #include "execute.hpp"
 
+struct debug_exe_out        // TODO: fix all sizes
+{
+	//
+	// Member declarations.
+	//
+	sc_bv< 3 > ld;
+	sc_bv< 2 > st;
+	sc_bv< 1 > memtoreg;
+	sc_bv< 1 > regwrite;
+	sc_bv< XLEN > alu_res;
+	sc_bv< DATA_SIZE > mem_datain;
+	sc_bv< REG_ADDR > dest_reg;
+	sc_uint< TAG_WIDTH > tag;
+
+} debug_exe_out_t;
+
 u_div_res_t execute::udiv_func(sc_uint<XLEN> num, sc_uint<XLEN> den)
 {
 	sc_uint<XLEN> rem;
@@ -19,8 +35,6 @@ u_div_res_t execute::udiv_func(sc_uint<XLEN> num, sc_uint<XLEN> den)
 DIVIDE_LOOP:
 	for(sc_int<6> i = 31; i >= 0; i--){
 		// Break EXE stage protocol for DSE
-		HLS_BREAK_PROTOCOL("div_break_proto");
-		DIV_UNROLL;
 
 		const sc_uint<XLEN> mask = BIT(i);
 		const sc_uint<XLEN> lsb = (mask & num) >> i;
@@ -72,15 +86,12 @@ void execute::perf_th(void)
 {
 PERF_RST:
 	{
-		PROTO_PERF_RST;
-
-                csr[MCYCLE_I] = 0x0; // Cycle count (32-bits only for now)
+        csr[MCYCLE_I] = 0x0; // Cycle count (32-bits only for now)
 		wait();
 		wait();
 	}
 
         while (true) {
-            PROTO_PERF_BODY;
             csr[MCYCLE_I]++;
             wait();
         }
@@ -90,10 +101,9 @@ PERF_RST:
 void execute::execute_th(void)
 {
 EXE_RST:
-	{
-		PROTO_EXE_RST;
-		din.reset_get();
-		dout.reset_put();
+	{	//cout << "@" << sc_time_stamp() << "\t" << name() << " Initialize execute" << endl ;
+		din.Reset();
+		dout.Reset();
 		output.tag = 0;
 
                 csr[MISA_I] = 0x40001101; // RV32IMA
@@ -107,13 +117,10 @@ EXE_RST:
 
 EXE_BODY:
 	while(true) {
-		PROTO_EXE_BODY;
-		MUL_SPLIT;
-		ADD_SPLIT;
 
 		// Get
-		input = din.get();
-
+		input = din.Pop();
+		//cout << "@" << sc_time_stamp() << "\t" << name() << " receiving input input=" << input << endl ;
 		// Compute
 		output.regwrite = input.regwrite;
 		output.memtoreg = input.memtoreg;
@@ -123,16 +130,19 @@ EXE_BODY:
 		output.mem_datain = input.rs2;
 		output.tag = input.tag;
 
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << input.pc << endl;
                 bool nop = false;
                 if (input.regwrite == "0" &&
                     input.ld == NO_LOAD &&
                     input.st == NO_STORE &&
-                    input.alu_op ==  (sc_bv<ALUOP_SIZE>)ALUOP_NULL)
+                    input.alu_op ==  (sc_bv<ALUOP_SIZE>)ALUOP_NULL) {
+					std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "NOP " << endl;
                     nop = true;
+					}
 
 #ifdef MUL64
 		// 64-bit temporary multiplication result, for upper 32 bit multiplications (MULH, MULHU, MULHSU).
-		__int64_t tmp_mul_res = 0;
+		int64_t tmp_mul_res = 0;
 #endif
 #ifdef DIV
 		// Temporary division results.
@@ -146,13 +156,16 @@ EXE_BODY:
 
 		// Sign extend the immediate operand for I-type instructions.
 		sc_bv<XLEN> tmp_sigext_imm_i = sc_bv<XLEN>(0);
-		if (input.imm_u.range(19, 19) == "1")
+		if (input.imm_u.range(19, 19) == "1") {
 			// Extend with 1s
 			tmp_sigext_imm_i = (sc_bv<20>("11111111111111111111"), (sc_bv<12>)input.imm_u.range(19, 8));
-		else
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "Extend with 1s " << endl;
+		}
+		else {
 			// Extend with 0s
 			tmp_sigext_imm_i = (sc_bv<20>("00000000000000000000"), (sc_bv<12>)input.imm_u.range(19, 8));
-
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "Extend with 0s " << endl;
+		}
 		// Zero-fill the immediate operand for U-type instructions.
 		sc_bv<XLEN> tmp_zerofill_imm_u = ((sc_bv<20>)input.imm_u.range(19, 0), sc_bv<12>("000000000000"));
 
@@ -161,27 +174,33 @@ EXE_BODY:
 
 		if (input.alu_src == (sc_bv<ALUSRC_SIZE>)ALUSRC_RS2) {
 			tmp_rs2 = input.rs2;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUSRC_RS2 " << endl;
 		} else if (input.alu_src == (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_I) {
 			tmp_rs2 = tmp_sigext_imm_i;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUSRC_IMM_I " << endl;
 		} else if (input.alu_src == (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_S) {
 			// reconstructs imm_s from imm_u and rd
 			sc_bv<12> imm_s = (sc_bv<7>(input.imm_u.range(19, 13)), input.dest_reg);
 			tmp_rs2 = sign_extend_imm_s(imm_s);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUSRC_IMM_S " << endl;
 		} else {
 			// ALUSRC_IMM_U
 			tmp_rs2 = tmp_zerofill_imm_u;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUSRC_IMM_U " << endl;
 		}
 
 		// ALU body
 		switch(sc_uint<ALUOP_SIZE>(input.alu_op)) {
 		case ALUOP_ADD: // ADD, ADDI, SB, SH, SW, LB, LH, LW, LBU, LHU.
 			output.alu_res = sc_bv<XLEN>((sc_int<XLEN>)input.rs1 + (sc_int<XLEN>)tmp_rs2);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_ADD " << endl;
 			break;
 		case ALUOP_SLT: // SLT, SLTI
 			if (sc_int<XLEN>(input.rs1) < sc_int<XLEN>(tmp_rs2))
 				output.alu_res = (sc_bv<XLEN>)1;
 			else
 				output.alu_res = (sc_bv<XLEN>)0;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SLT " << endl;
 			break;
 		case ALUOP_SLTU: // SLTU, SLTIU
 			if (sc_uint<XLEN>(input.rs1) < sc_uint<XLEN>(tmp_rs2))
@@ -189,87 +208,109 @@ EXE_BODY:
 			else
 				output.alu_res = (sc_bv<XLEN>)0;
 			break;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SLTU " << endl;
 		case ALUOP_XOR: // XOR, XORI
 			output.alu_res = input.rs1 ^ tmp_rs2;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_XOR " << endl;
 			break;
 		case ALUOP_OR: // OR, ORI
 			output.alu_res = input.rs1 | tmp_rs2;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_OR " << endl;
 			break;
 		case ALUOP_AND: // AND, ANDI
 			output.alu_res = input.rs1 & tmp_rs2;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_AND " << endl;
 			break;
 		case ALUOP_SLL: // SLL
 			output.alu_res = sc_uint<XLEN>(input.rs1) << sc_uint<SHAMT>((sc_bv<SHAMT>)tmp_rs2.range(4, 0));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SLL " << endl;
 			break;
 		case ALUOP_SRL: // SRL
 			output.alu_res = sc_uint<XLEN>(input.rs1) >> sc_uint<SHAMT>((sc_bv<SHAMT>)tmp_rs2.range(4, 0));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SRL " << endl;
 			break;
 		case ALUOP_SRA: // SRA
 			// >> is arith right sh. for sc_int operand
 			output.alu_res = sc_int<XLEN>(input.rs1) >> sc_uint<SHAMT>((sc_bv<SHAMT>)tmp_rs2.range(4, 0));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SRA " << endl;
 			break;
 		case ALUOP_SUB: // SUB
 			output.alu_res = sc_bv<XLEN>((sc_int<XLEN>)input.rs1 - (sc_int<XLEN>)tmp_rs2);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SUB " << endl;
 			break;
 		case ALUOP_SLLI: // SLLI
 			output.alu_res = sc_uint<XLEN>(input.rs1) << sc_uint<SHAMT>((sc_bv<SHAMT>)tmp_rs2.range(24, 20));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SLLI " << endl;
 			break;
 		case ALUOP_SRLI: // SRLI
 			output.alu_res = sc_uint<XLEN>(input.rs1) >> sc_uint<SHAMT>((sc_bv<SHAMT>)tmp_rs2.range(24, 20));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SRLI " << endl;
 			break;
 		case ALUOP_SRAI: // SRAI
 			// >> is arith right sh. for sc_int operand
 			output.alu_res = sc_int<XLEN>(input.rs1) >> sc_uint<SHAMT>((sc_bv<SHAMT>)tmp_rs2.range(24, 20));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_SRAI " << endl;
 			break;
 		case ALUOP_LUI: // LUI
 			// zerofill_imm_u
 			output.alu_res = tmp_rs2;
+			//std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_LUI " << endl;
 			break;
 		case ALUOP_AUIPC: // AUIPC
 			// zerofill_imm_u + pc
 			output.alu_res = sc_bv<XLEN>((sc_int<XLEN>)tmp_rs2 + (sc_int<XLEN>)input.pc);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_AUIPC " << endl;
 			break;
 		case ALUOP_JAL: // JAL, JALR
 			// link register update
 			output.alu_res = sc_bv<XLEN>((sc_int<XLEN>)input.pc + 4);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_JAL " << endl;
 			break;
 #ifdef MUL32
 		case ALUOP_MUL: // MUL: signed * signed, return lower 32 bits
-			output.alu_res = (sc_int<XLEN>)input.rs1 * (sc_int<XLEN>)tmp_rs2;;
+			output.alu_res = (sc_int<XLEN>)input.rs1 * (sc_int<XLEN>)tmp_rs2;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_MUL " << endl;
 			break;
 #endif
 #ifdef MUL64
 		case ALUOP_MULH: // MULH: signed * signed, return upper 32 bits
 			tmp_mul_res = input.rs1.to_int() * tmp_rs2.to_int();
 			output.alu_res = sc_bv<XLEN*2>(sc_int<XLEN*2>(tmp_mul_res)).range((XLEN*2)-1, XLEN);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_MULH " << endl;
 			break;
 		case ALUOP_MULHSU: // MULHSU: signed * unsigned, return upper 32 bits
 			tmp_mul_res = input.rs1.to_int() * tmp_rs2.to_uint();
 			output.alu_res = sc_bv<XLEN*2>(sc_int<XLEN*2>(tmp_mul_res)).range((XLEN*2)-1, XLEN);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_MULHSU " << endl;
 			break;
 		case ALUOP_MULHU: // MULHU: unsigned * unsigned, return upper 32 bits
 			tmp_mul_res = input.rs1.to_uint() * tmp_rs2.to_uint();
 			output.alu_res = sc_bv<XLEN*2>(sc_int<XLEN*2>(tmp_mul_res)).range((XLEN*2)-1, XLEN);
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_MULHU " << endl;
 			break;
 #endif
 #ifdef DIV
 		case ALUOP_DIV: // DIV calls div_func
 			div_res = div_func((sc_int<XLEN>)input.rs1, (sc_int<XLEN>)tmp_rs2);
 			output.alu_res = (sc_bv<XLEN>)div_res.quotient;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_DIV " << endl;
 			break;
 		case ALUOP_DIVU: // DIVU calls udiv_func
 			u_div_res = udiv_func((sc_uint<XLEN>)input.rs1, (sc_uint<XLEN>)tmp_rs2);
 			output.alu_res = (sc_bv<XLEN>)u_div_res.quotient;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_DIVU " << endl;
 			break;
 #endif
 #ifdef REM
 		case ALUOP_REM: // REM calls div_func
 			div_res = div_func((sc_int<XLEN>)input.rs1, (sc_int<XLEN>)tmp_rs2);
 			output.alu_res = (sc_bv<XLEN>)div_res.remainder;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_REM " << endl;
 			break;
 		case ALUOP_REMU: // REMU calls udiv_func
 			u_div_res = udiv_func((sc_uint<XLEN>)input.rs1, (sc_uint<XLEN>)tmp_rs2);
 			output.alu_res = (sc_bv<XLEN>)u_div_res.remainder;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_REMU " << endl;
 			break;
 #endif
 #ifdef CSR_LOGIC
@@ -280,35 +321,42 @@ EXE_BODY:
 			csr_index = get_csr_index(input.imm_u.range(19, 8));
 			output.alu_res = csr[csr_index];
                         set_csr_value(csr_index, input.rs1, CSR_OP_WR, input.imm_u.range(19, 18));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_CSRRW " << endl;
 			break;
 		case ALUOP_CSRRS: // CSRRS
 			csr_index = get_csr_index(input.imm_u.range(19, 8));
 			output.alu_res = csr[csr_index];
                         set_csr_value(csr_index, input.rs1, CSR_OP_SET, input.imm_u.range(19, 18));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_CSRRS " << endl;
 			break;
 		case ALUOP_CSRRC: // CSRRC
 			csr_index = get_csr_index(input.imm_u.range(19, 8));
 			output.alu_res = csr[csr_index];
                         set_csr_value(csr_index, input.rs1, CSR_OP_CLR, input.imm_u.range(19, 18));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_CSRRC " << endl;
 			break;
 		case ALUOP_CSRRWI: // CSRRWI
 			csr_index = get_csr_index(input.imm_u.range(19, 8));
 			output.alu_res = csr[csr_index];
                         set_csr_value(csr_index, input.imm_u.range(7, 3), CSR_OP_WR, input.imm_u.range(19, 18));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_CSRRWI " << endl;
 			break;
 		case ALUOP_CSRRSI: // CSRRSI
 			csr_index = get_csr_index(input.imm_u.range(19, 8));
 			output.alu_res = csr[csr_index];
                         set_csr_value(csr_index, input.imm_u.range(7, 3), CSR_OP_SET, input.imm_u.range(19, 18));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_CSRRSI " << endl;
 			break;
 		case ALUOP_CSRRCI: // CSRRCI
 			csr_index = get_csr_index(input.imm_u.range(19, 8));
 			output.alu_res = csr[csr_index];
                         set_csr_value(csr_index, input.imm_u.range(7, 3), CSR_OP_CLR, input.imm_u.range(19, 18));
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_CSRRCI " << endl;
 			break;
 #endif
 		default: // ALUOP_NULL (do nothing)
 			output.alu_res = (sc_bv<XLEN>)0;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ALUOP_NULL " << endl;
 			break;
 		}
 
@@ -328,7 +376,9 @@ EXE_BODY:
                     csr[MINSTRET_I]++;
 
 		// Put
-		dout.put(output);
+		//cout << "@" << sc_time_stamp() << "\t" << name() << " sending output=" << output << endl;
+		std::cout << endl;
+		dout.Push(output);
 		wait();
 	}
 }

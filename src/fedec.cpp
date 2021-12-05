@@ -6,6 +6,7 @@
 //
 
 #include "fedec.hpp"
+#include <string>
 
 #ifndef STRATUS_HLS
 #include <colormod.hpp> // namespace Color
@@ -14,18 +15,38 @@
 // #define MAIN_START_O2 0x10074
 #define SENTINEL_INIT (1 << (TAG_WIDTH - 1))
 
+//for debugging purposes
+struct debug_dout
+{
+	//
+	// Member declarations.
+	//
+	std::string regwrite;
+	std::string memtoreg;
+	std::string ld;
+	std::string st;
+	std::string alu_op;
+	std::string alu_src;
+	sc_bv< XLEN > rs1;
+	sc_bv< XLEN > rs2;
+	std::string dest_reg;
+	int pc;
+	int aligned_pc;
+	sc_bv< XLEN-12 > imm_u;
+	sc_uint< TAG_WIDTH > tag;
+
+} debug_dout_t;
+
 void fedec::fedec_th(void)
 {
 FEDEC_RST:
 	{
-		PROTO_FEDEC_RST;
-		dout.reset_put();
-		feed_from_wb.reset_get();
-
+		dout.Reset();
+		feed_from_wb.Reset();
+		//std::cout << "Fetch initialization" << std::endl;
 		// Init. sentinel flags to zero.
 
 		for(int i = 0; i < REG_NUM; i++) {
-			HLS_UNROLL_LOOP(ON);
 			sentinel[i] = SENTINEL_INIT;
 		}
 
@@ -59,7 +80,6 @@ FEDEC_RST:
 
 FEDEC_BODY:
 	while(true) {
-		PROTO_FEDEC_BODY;
 
 		// --- Fetch
 		if (!freeze) {
@@ -77,11 +97,20 @@ FEDEC_BODY:
 
 		output.pc = pc;
 		unsigned int aligned_pc = pc >> 2;
+		
+
+
+		//sc_assert(sc_time_stamp().to_double() < 2000000);
+		debug_dout_t.pc = pc;
+		debug_dout_t.aligned_pc = aligned_pc;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << pc << endl;
+		std::cout << endl;
 
 		wait();
 		unsigned int imem_data = imem[aligned_pc];
 		insn = imem_data;
-
+		
+		//cout << "@" << sc_time_stamp() << "\t" << name() << " instruction=" << imem_data << endl ;
 		// Increment some instruction counters
 		if (!freeze) {
 			sc_uint<OPCODE_SIZE> opcode = sc_uint<OPCODE_SIZE>(sc_bv<OPCODE_SIZE>(insn.range(6, 2)));
@@ -109,14 +138,17 @@ FEDEC_BODY:
 		// --- ENDOF Fetch
 
 		// --- Decode
-		if (position > 1) // Synchronize with WB stage at startup.
-			feedinput = feed_from_wb.get(); // Get from writeback.
+		if (position > 1) { // Synchronize with WB stage at startup.
+			feedinput = feed_from_wb.Pop(); // Get from writeback.
+			//cout << "@" << sc_time_stamp() << "\t" << name() << " receiving input feedinput=" << feedinput << endl ;
+		}
 		else
 			position++;
 
 		// *** Register file write.
 		if (feedinput.regwrite == "1" && feedinput.regfile_address != "00000") { // Actual writeback.
 			regfile[sc_uint<REG_ADDR>(feedinput.regfile_address)] = feedinput.regfile_data; // Overwrite register.
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "x" << std::dec << sc_uint<REG_ADDR>(feedinput.regfile_address) << std::hex << "= " << feedinput.regfile_data << endl ;
 			if (feedinput.tag == sentinel[sc_uint<REG_ADDR>(feedinput.regfile_address)])
 				sentinel[sc_uint<REG_ADDR>(feedinput.regfile_address)] = SENTINEL_INIT; // Reset sentinel flag.
 		}
@@ -132,18 +164,25 @@ FEDEC_BODY:
 #ifdef FWD_ENABLE
 		if (!fwd.ldst && fwd.tag == sentinel[rs1_addr] && fwd.tag != SENTINEL_INIT) {
 			forward_success_rs1 = true;
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "rs1 forward data of x" << std::dec << rs1_addr << std::hex << "= " << fwd.regfile_data << endl ;
 			output.rs1 = fwd.regfile_data;
+			debug_dout_t.rs1 = fwd.regfile_data;
 		} else {
-#endif
+#endif		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "rs1 forward data of x" << std::dec << rs1_addr << std::hex << "= " << regfile[rs1_addr] << endl ;
 			output.rs1 = regfile[rs1_addr];
+			debug_dout_t.rs1 = regfile[rs1_addr];
 #ifdef FWD_ENABLE
 		}
 		if (!fwd.ldst && fwd.tag == sentinel[rs2_addr] && fwd.tag != SENTINEL_INIT) {
 			forward_success_rs2 = true;
+			cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "rs2 forward data of x" << std::dec << rs2_addr << std::hex << "= " << fwd.regfile_data << endl ;
 			output.rs2 = fwd.regfile_data;
+			debug_dout_t.rs2 = fwd.regfile_data;
 		} else {
-#endif
+#endif		
+			cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "rs2 forward data of x" << std::dec << rs2_addr << std::hex << "= " << regfile[rs2_addr] << endl ;
 			output.rs2 = regfile[rs2_addr];
+			debug_dout_t.rs2 = regfile[rs2_addr];
 #ifdef FWD_ENABLE
 		}
 #endif
@@ -239,8 +278,10 @@ FEDEC_BODY:
 		// *** END of feedback to fetch data computation and put() section.
 
 		// *** Propagations: rd, immediates sign extensions.
-		output.dest_reg = insn.range(11, 7);                            // RD field of insn.
+		output.dest_reg = insn.range(11, 7); 
+		debug_dout_t.dest_reg = std::to_string(insn.range(11, 7).to_int());                           // RD field of insn.
 		output.imm_u = insn.range(31, 12);                              // This field is then used in the execute stage not only as immU field but to obtain several subfields used by non U-type instructions.
+		debug_dout_t.imm_u = insn.range(31, 12);  
 		// *** END of RD propagation and immediates sign extensions.
 
 		// *** Control word generation.
@@ -248,44 +289,68 @@ FEDEC_BODY:
 
 		case OPC_LUI:
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_LUI;
+			debug_dout_t.alu_op = "ALUOP_LUI";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_U;
+			debug_dout_t.alu_src = "ALUSRC_IMM_U";
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG YES";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			break;
 
 		case OPC_AUIPC:
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_AUIPC;
+			debug_dout_t.alu_op = "ALUOP_AUIPC";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_U;
+			debug_dout_t.alu_src = "ALUSRC_IMM_U";
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			break;
 
 		case OPC_JAL:
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_JAL;
+			debug_dout_t.alu_op = "ALUOP_JAL";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_RS2;   // Actually does not use RS2 as it performs "rd = pc + 4"
+			debug_dout_t.alu_src = "ALUSRC_RS2";
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			break;
 
 		case OPC_JALR:  // same as JAL, could optimize
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_JALR;
+			debug_dout_t.alu_op = "ALUOP_JALR";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_RS2;   // Actually does not use RS2 as it performs "rd = pc + 4"
+			debug_dout_t.alu_src = "ALUSRC_RS2";
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			rs1_raw = true;
@@ -293,11 +358,17 @@ FEDEC_BODY:
 
 		case OPC_BEQ: // Branch instructions: BEQ, BNE, BLT, BGE, BLTU, BGEU
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+			debug_dout_t.alu_op = "ALUOP_NULL";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_RS2;
+			debug_dout_t.alu_src = "ALUSRC_RS2";
 			output.regwrite = "0";
+			debug_dout_t.regwrite = "REGWRITE NO";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			rs1_raw = true;
@@ -308,31 +379,42 @@ FEDEC_BODY:
 			switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 			case FUNCT3_LB:
 				output.ld       = LB_LOAD;
+				debug_dout_t.ld = "LB_LOAD";
 				break;
 			case FUNCT3_LH:
 				output.ld       = LH_LOAD;
+				debug_dout_t.ld = "LH_LOAD";
 				break;
 			case FUNCT3_LW:
 				output.ld       = LW_LOAD;
+				debug_dout_t.ld = "LW_LOAD";
 				break;
 			case FUNCT3_LBU:
 				output.ld       = LBU_LOAD;
+				debug_dout_t.ld = "LBU_LOAD";
 				break;
 			case FUNCT3_LHU:
 				output.ld       = LHU_LOAD;
+				debug_dout_t.ld = "LHU_LOAD";
 				break;
 			default:
 				output.ld       = NO_LOAD;
+				debug_dout_t.ld = "NO_LOAD";
 #ifndef STRATUS_HLS
 				SC_REPORT_ERROR(sc_object::name(), "Unimplemented LOAD instruction");
 #endif
 				break;
 			}
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_ADD;
+			debug_dout_t.alu_op = "ALUOP_ADD";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_I;
+			debug_dout_t.alu_src = "ALUSRC_IMM_I";
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO_STORE";
 			output.memtoreg = "1";
+			debug_dout_t.memtoreg = "MEMTOREG YES";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			rs1_raw = true; // Base address
@@ -342,25 +424,34 @@ FEDEC_BODY:
 			switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 			case FUNCT3_SB:
 				output.st       = SB_STORE;
+				debug_dout_t.st = "SB_STORE";
 				break;
 			case FUNCT3_SH:
 				output.st       = SH_STORE;
+				debug_dout_t.st = "SH_STORE";
 				break;
 			case FUNCT3_SW:
 				output.st       = SW_STORE;
+				debug_dout_t.st = "SW_STORE";
 				break;
 			default:
 				output.st       = NO_STORE;
+				debug_dout_t.st = "NO_STORE";
 #ifndef STRATUS_HLS
 				SC_REPORT_ERROR(sc_object::name(), "Unimplemented STORE instruction");
 #endif
 				break;
 			}
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_ADD;
+			debug_dout_t.alu_op = "ALUOP_ADD";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_S;
+			debug_dout_t.alu_src = "ALUSRC_IMM_S";
 			output.regwrite = "0";
+			debug_dout_t.regwrite = "REGWRITE NO";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO_LOAD";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			rs1_raw = true; // Base address
@@ -371,39 +462,53 @@ FEDEC_BODY:
 
 			if (sc_uint<7>(sc_bv<7>(insn.range(31, 25))) == FUNCT7_SRAI && sc_uint<3>(sc_bv<3>(insn.range(14, 12))) == FUNCT3_SRAI) {
 				output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SRAI;
+				debug_dout_t.alu_op = "ALUOP_SRAI";
 				output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_U;
+				debug_dout_t.alu_src = "ALUSRC_IMM_U";
 			}
 			else if (sc_uint<7>(sc_bv<7>(insn.range(31, 25))) == FUNCT7_SLLI && sc_uint<3>(sc_bv<3>(insn.range(14, 12))) == FUNCT3_SLLI) {
 				output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SLLI;
+				debug_dout_t.alu_op = "ALUOP_SLLI";
 				output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_U;
+				debug_dout_t.alu_src = "ALUSRC_IMM_U";
 			}
 			else if (sc_uint<7>(sc_bv<7>(insn.range(31, 25))) == FUNCT7_SRLI && sc_uint<3>(sc_bv<3>(insn.range(14, 12))) == FUNCT3_SRLI) {
 				output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SRLI;
+				debug_dout_t.alu_op = "ALUOP_SRLI";
 				output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_U;
+				debug_dout_t.alu_src = "ALUSRC_IMM_U";
 			}
 			else{
 				output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_IMM_I;
+				debug_dout_t.alu_src = "ALUSRC_IMM_I";
 				switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 				case FUNCT3_ADDI:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_ADDI;
+					debug_dout_t.alu_op = "ALUOP_ADDI";
 					break;
 				case FUNCT3_SLTI:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SLTI;
+					debug_dout_t.alu_op = "ALUOP_SLTI";
 					break;
 				case FUNCT3_SLTIU:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SLTIU;
+					debug_dout_t.alu_op = "ALUOP_SLTIU";
 					break;
 				case FUNCT3_XORI:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_XORI;
+					debug_dout_t.alu_op = "ALUOP_XORI";
 					break;
 				case FUNCT3_ORI:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_ORI;
+					debug_dout_t.alu_op = "ALUOP_ORI";
 					break;
 				case FUNCT3_ANDI:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_ANDI;
+					debug_dout_t.alu_op = "ALUOP_ANDI";
 					break;
 				default:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+					debug_dout_t.alu_op = "ALUOP_NULL";
 #ifndef STRATUS_HLS
 					SC_REPORT_ERROR(sc_object::name(), "Unimplemented ALUOP_IMM instruction");
 #endif
@@ -411,9 +516,13 @@ FEDEC_BODY:
 				}
 			}
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO_LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO_STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			rs1_raw = true;
@@ -421,10 +530,15 @@ FEDEC_BODY:
 
 		case OPC_ADD: // R-type instructions: ADD, SLL, SLT, SLTU, XOR, SRL, OR, AND, SUB, SRA, MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU.
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_RS2;
+			debug_dout_t.alu_src = "ALUSRC_RS2";
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO_LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO_STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "REGWRITE NO";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
 			// FUNCT7 switch discriminates between classes of R-type instructions.
@@ -433,30 +547,39 @@ FEDEC_BODY:
 				switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 				case FUNCT3_ADD:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_ADD;
+					debug_dout_t.alu_op = "ALUOP_ADD";
 					break;
 				case FUNCT3_SLL:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SLL;
+					debug_dout_t.alu_op = "ALUOP_SLL";
 					break;
 				case FUNCT3_SLT:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SLT;
+					debug_dout_t.alu_op = "ALUOP_SLT";
 					break;
 				case FUNCT3_SLTU:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SLTU;
+					debug_dout_t.alu_op = "ALUOP_SLTU";
 					break;
 				case FUNCT3_XOR:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_XOR;
+					debug_dout_t.alu_op = "ALUOP_XOR";
 					break;
 				case FUNCT3_SRL:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SRL;
+					debug_dout_t.alu_op = "ALUOP_SRL";
 					break;
 				case FUNCT3_OR:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_OR;
+					debug_dout_t.alu_op = "ALUOP_OR";
 					break;
 				case FUNCT3_AND:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_AND;
+					debug_dout_t.alu_op = "ALUOP_AND";
 					break;
 				default:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+					debug_dout_t.alu_op = "ALUOP_NULL";
 #ifndef STRATUS_HLS
 					SC_REPORT_ERROR(sc_object::name(), "Unimplemented ALUOP_ADD instruction");
 #endif
@@ -467,12 +590,15 @@ FEDEC_BODY:
 				switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 				case FUNCT3_SUB:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SUB;
+					debug_dout_t.alu_op = "ALUOP_SUB";
 					break;
 				case FUNCT3_SRA:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_SRA;
+					debug_dout_t.alu_op = "ALUOP_SRA";
 					break;
 				default:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+					debug_dout_t.alu_op = "ALUOP_NULL";
 #ifndef STRATUS_HLS
 					SC_REPORT_ERROR(sc_object::name(), "Unimplemented ALUOP_SUB instruction");
 #endif
@@ -484,30 +610,39 @@ FEDEC_BODY:
 				switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 				case FUNCT3_MUL:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_MUL;
+					debug_dout_t.alu_op = "ALUOP_MUL";
 					break;
 				case FUNCT3_MULH:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_MULH;
+					debug_dout_t.alu_op = "ALUOP_MULH";
 					break;
 				case FUNCT3_MULHSU:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_MULHSU;
+					debug_dout_t.alu_op = "ALUOP_MULHSU";
 					break;
 				case FUNCT3_MULHU:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_MULHU;
+					debug_dout_t.alu_op = "ALUOP_MULHU";
 					break;
 				case FUNCT3_DIV:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_DIV;
+					debug_dout_t.alu_op = "ALUOP_DIV";
 					break;
 				case FUNCT3_DIVU:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_DIVU;
+					debug_dout_t.alu_op = "ALUOP_DIVU";
 					break;
 				case FUNCT3_REM:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_REM;
+					debug_dout_t.alu_op = "ALUOP_REM";
 					break;
 				case FUNCT3_REMU:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_REMU;
+					debug_dout_t.alu_op = "ALUOP_REMU";
 					break;
 				default:
 					output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+					debug_dout_t.alu_op = "ALUOP_NULL";
 #ifndef STRATUS_HLS
 					SC_REPORT_ERROR(sc_object::name(), "Unimplemented ALUOP_MUL instruction");
 #endif
@@ -517,6 +652,7 @@ FEDEC_BODY:
 #endif
 			default:
 				output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+				debug_dout_t.alu_op = "ALUOP_NULL";
 #ifndef STRATUS_HLS
 				SC_REPORT_ERROR(sc_object::name(), "Unimplemented ALUOP instruction");
 #endif
@@ -529,11 +665,17 @@ FEDEC_BODY:
 #ifdef CSR_LOGIC
 		case OPC_SYSTEM:
 			output.alu_op   = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+			debug_dout_t.alu_op = "ALUOP_NULL";
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_RS2;
+			debug_dout_t.alu_src = "ALUSRC_RS2";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO_LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO_STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			output.regwrite = "1";
+			debug_dout_t.regwrite = "REGWRITE YES";
 			rs1_raw = true;
 			switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 			case FUNCT3_EBREAK: // EBREAK, ECALL
@@ -541,51 +683,63 @@ FEDEC_BODY:
 				rs1_raw = false;
 				trap = "1";
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRWI;
+				debug_dout_t.alu_op = "ALUOP_CSRRWI";
 				output.imm_u.range(19, 8) = (sc_bv<CSR_ADDR>)MCAUSE_A;    // force the CSR address to MCAUSE's
+				debug_dout_t.imm_u.range(19, 8) = (sc_bv<CSR_ADDR>)MCAUSE_A;
 				if (sc_bv<1>(insn.range(20, 20)) == (sc_bv<1>)FUNCT7_EBREAK) {   // Bit 20 discriminates b/n EBREAK and ECALL
 					// EBREAK and ECALL leverage CSRRWI decoding to write into the MCAUSE register
 					// but keep regwrite to "0" to prevent writeback
 					trap_cause = EBREAK_CAUSE;  // may be not necessary but is kept for future implementations
 					output.imm_u.range(7, 3) = (sc_bv<ZIMM_SIZE>)EBREAK_CAUSE;  // force the exception cause on the zimm field
+					debug_dout_t.imm_u.range(7, 3) = (sc_bv<ZIMM_SIZE>)EBREAK_CAUSE;
 				}
 				else{  // FUNCT7_ECALL
 					trap_cause = ECALL_CAUSE;   // may be not necessary but is kept for future implementations
 					output.imm_u.range(7, 3) = (sc_bv<ZIMM_SIZE>)ECALL_CAUSE;   // force the exception cause on the zimm field
+					debug_dout_t.imm_u.range(7, 3) = (sc_bv<ZIMM_SIZE>)ECALL_CAUSE;
 				}
 				break;
 			case FUNCT3_CSRRW:
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRW;
+				debug_dout_t.alu_op = "ALUOP_CSRRW";
 				trap = "0";
 				trap_cause = NULL_CAUSE;
 				break;
 			case FUNCT3_CSRRS:
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRS;
+				debug_dout_t.alu_op = "ALUOP_CSRRS";
 				trap = "0";
 				trap_cause = NULL_CAUSE;
 				break;
 			case FUNCT3_CSRRC:
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRC;
+				debug_dout_t.alu_op = "ALUOP_CSRRC";
 				trap = "0";
 				trap_cause = NULL_CAUSE;
 				break;
 			case FUNCT3_CSRRWI:
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRWI;
+				debug_dout_t.alu_op = "ALUOP_CSRRWI";
 				output.regwrite = "1";
+				debug_dout_t.regwrite = "REGWRITE YES";
 				trap = "0";
 				trap_cause = NULL_CAUSE;
 				break;
 			case FUNCT3_CSRRSI:
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRSI;
+				debug_dout_t.alu_op = "ALUOP_CSRRSI";
 				trap = "0";
 				trap_cause = NULL_CAUSE;
 				break;
 			case FUNCT3_CSRRCI:
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRCI;
+				debug_dout_t.alu_op = "ALUOP_CSRRCI";
 				trap = "0";
 				trap_cause = NULL_CAUSE;
 				break;
 			default:
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+				debug_dout_t.alu_op = "ALUOP_NULL";
 				trap = "0";
 				trap_cause = NULL_CAUSE;
 #ifndef STRATUS_HLS
@@ -598,15 +752,23 @@ FEDEC_BODY:
 
                 default: // illegal instruction
 			output.alu_src  = (sc_bv<ALUSRC_SIZE>)ALUSRC_RS2;
+			debug_dout_t.alu_src = "ALUSRC_RS2";
 			output.regwrite = "0";
+			debug_dout_t.regwrite = "REGWRITE NO";
 			output.ld       = NO_LOAD;
+			debug_dout_t.ld = "NO_LOAD";
 			output.st       = NO_STORE;
+			debug_dout_t.st = "NO_STORE";
 			output.memtoreg = "0";
+			debug_dout_t.memtoreg = "MEMTOREG NO";
 			trap = "1";
 			trap_cause = ILL_INSN_CAUSE;
 			output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRWI;
+			debug_dout_t.alu_op = "ALUOP_CSRRWI";
 			output.imm_u.range(19, 8) = (sc_bv<12>)MCAUSE_A;    // force the CSR address to MCAUSE's
+			debug_dout_t.imm_u.range(19, 8) = (sc_bv<12>)MCAUSE_A;
 			output.imm_u.range(7, 3) = (sc_bv<5>)ILL_INSN_CAUSE;  // force the exception cause
+			debug_dout_t.imm_u.range(7, 3) = (sc_bv<5>)ILL_INSN_CAUSE;
 			break;
 #ifndef STRATUS_HLS
 			SC_REPORT_ERROR(sc_object::name(), "Unimplemented instruction");
@@ -628,79 +790,110 @@ FEDEC_BODY:
 		else
 			output.tag = SENTINEL_INIT;
 
-#ifdef VERBOSE
+// #ifdef VERBOSE
 
-#ifndef STRATUS_HLS
-			Color::Modifier red(Color::FG_RED);
-			Color::Modifier yellow(Color::FG_YELLOW);
-			Color::Modifier green(Color::FG_GREEN);
-			Color::Modifier def(Color::FG_DEFAULT);
+// #ifndef STRATUS_HLS
+// 			Color::Modifier red(Color::FG_RED);
+// 			Color::Modifier yellow(Color::FG_YELLOW);
+// 			Color::Modifier green(Color::FG_GREEN);
+// 			Color::Modifier def(Color::FG_DEFAULT);
 
-			if (freeze)
-				std::cout << red;
-			else if (self_feed.jump == "1" || self_feed.branch == "1")
-				std::cout << yellow;
-			std::cout << std::hex << std::right << "PC[0x" << std::setw(8)  << pc << "] -> " << insn << std::dec << " -> ";
-			std::cout << def;
-
-
-			if (rs1_raw)
-				std::cout << " " << yellow << std::right << std::setfill(' ') << std::setw(3) << rs1_addr << " " << def;
-			else
-				std::cout << " " << std::right << std::setfill(' ') << std::setw(3) << rs1_addr << " ";
-			if (rs2_raw)
-				std::cout << yellow << std::right << std::setfill(' ') << std::setw(3) << rs2_addr << def << " -> ";
-			else
-				std::cout << std::right << std::setfill(' ') << std::setw(3) << rs2_addr << " -> ";
-			if (output.regwrite == "1" )
-				std::cout << yellow << std::right << std::setfill(' ') << std::setw(3) << output.dest_reg.to_uint() << def;
-			else
-				std::cout << std::right << std::setfill(' ') << std::setw(3) << output.dest_reg.to_uint();
-#endif
+// 			if (freeze)
+// 				std::cout << red;
+// 			else if (self_feed.jump == "1" || self_feed.branch == "1")
+// 				std::cout << yellow;
+// 			std::cout << std::hex << std::right << "PC[0x" << std::setw(8)  << pc << "] -> " << insn << std::dec << " -> ";
+// 			std::cout << def;
 
 
-#ifndef STRATUS_HLS
-			if (forward_success_rs1 || forward_success_rs2)
-				std::cout << green;
-			std::cout << "  **REGFILE** ";
-			std::cout << def;
-			int id1 = rs1_addr;
-			int id2 = rs2_addr;
-			int raw_id1 = rs1_raw ? id1 : -1;
-			int raw_id2 = rs2_raw ? id2 : -1;
-			for(int i = 0; i < REG_NUM; ) {
-				for (int j = 0; j < 8; j++) {
-					int r = regfile[i].to_int();
-					if (sentinel[i] != SENTINEL_INIT && (raw_id1 == i || raw_id2 == i) && !freeze) {
-						std::cout << " " << green << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::hex << std::left << std::setfill(' ') << std::setw(10) << r << std::dec << def;
-					} else if (sentinel[i] != SENTINEL_INIT && (raw_id1 == i || raw_id2 == i)) {
-						std::cout << " " << red << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::hex << std::left << std::setfill(' ') << std::setw(10) << r << std::dec << def;
-					} else if (sentinel[i] != SENTINEL_INIT) {
-						std::cout << " " << yellow << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::hex << std::left << std::setfill(' ') << std::setw(10) << r << std::dec << def;
-					} else {
-						std::cout << " " << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::hex << std::left << std::setfill(' ') << std::setw(10) << r << std::dec;
-					}
-					i++;
-					if (i == REG_NUM)
-						break;
-				}
-				std::cout << endl;
-				if (i == REG_NUM)
-					break;
-				std::cout << "                                                             ";
-			}
-#endif
+// 			if (rs1_raw)
+// 				std::cout << " " << yellow << std::right << std::setfill(' ') << std::setw(3) << rs1_addr << " " << def;
+// 			else
+// 				std::cout << " " << std::right << std::setfill(' ') << std::setw(3) << rs1_addr << " ";
+// 			if (rs2_raw)
+// 				std::cout << yellow << std::right << std::setfill(' ') << std::setw(3) << rs2_addr << def << " -> ";
+// 			else
+// 				std::cout << std::right << std::setfill(' ') << std::setw(3) << rs2_addr << " -> ";
+// 			if (output.regwrite == "1" )
+// 				std::cout << yellow << std::right << std::setfill(' ') << std::setw(3) << output.dest_reg.to_uint() << def;
+// 			else
+// 				std::cout << std::right << std::setfill(' ') << std::setw(3) << output.dest_reg.to_uint();
+// #endif
 
-#endif
+
+// #ifndef STRATUS_HLS
+// 			if (forward_success_rs1 || forward_success_rs2)
+// 				std::cout << green;
+// 			std::cout << "  **REGFILE** ";
+// 			std::cout << def;
+// 			int id1 = rs1_addr;
+// 			int id2 = rs2_addr;
+// 			int raw_id1 = rs1_raw ? id1 : -1;
+// 			int raw_id2 = rs2_raw ? id2 : -1;
+// 			for(int i = 0; i < REG_NUM; ) {
+// 				for (int j = 0; j < 8; j++) {
+// 					int r = regfile[i].to_int();
+// 					if (sentinel[i] != SENTINEL_INIT && (raw_id1 == i || raw_id2 == i) && !freeze) {
+// 						std::cout << " " << green << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::dec << std::left << std::setfill(' ') << std::setw(10) << r << std::dec << def;
+// 					} else if (sentinel[i] != SENTINEL_INIT && (raw_id1 == i || raw_id2 == i)) {
+// 						std::cout << " " << red << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::dec << std::left << std::setfill(' ') << std::setw(10) << r << std::dec << def;
+// 					} else if (sentinel[i] != SENTINEL_INIT) {
+// 						std::cout << " " << yellow << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::dec << std::left << std::setfill(' ') << std::setw(10) << r << std::dec << def;
+// 					} else {
+// 						std::cout << " " << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::dec << std::left << std::setfill(' ') << std::setw(10) << r << std::dec;
+// 					}
+// 					i++;
+// 					if (i == REG_NUM)
+// 						break;
+// 				}
+// 				std::cout << endl;
+// 				if (i == REG_NUM)
+// 					break;
+// 				std::cout << "                                                             ";
+// 			}
+// #endif
+
+// #endif
 
 		// *** Transform instruction into nop when freeze is active
 		if (freeze) {
 			// Bubble.
 			output.regwrite     = "0";
+			debug_dout_t.regwrite = "REGWRITE NO";
 			output.ld           = NO_LOAD;
+			debug_dout_t.ld = "NO_LOAD";
 			output.st           = NO_STORE;
+			debug_dout_t.st = "NO_STORE";
 		}
-		dout.put(output);
+
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "freeze= " << freeze << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << debug_dout_t.pc << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "regwrite= " << debug_dout_t.regwrite << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "memtoreg= " << debug_dout_t.memtoreg << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "ld= " << debug_dout_t.ld << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "st= " << debug_dout_t.st << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "alu_op= " << debug_dout_t.alu_op << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "alu_src= " << debug_dout_t.alu_src << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "rs1= " << debug_dout_t.rs1 << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "rs2= " << debug_dout_t.rs2 << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "dest_reg= " << debug_dout_t.dest_reg << endl;
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "imm_u= " << debug_dout_t.imm_u << endl;
+
+		for(int i = 0; i < REG_NUM; ) {
+			std::cout << endl;
+			for (int j = 0; j < 8; j++) {
+				int r = regfile[i].to_int();
+				std::cout << " " << std::right << std::setfill(' ') << std::setw(2) << i << ": 0x" << std::hex << std::left << std::setfill(' ') << std::setw(10) << r << std::dec;
+				i++;
+				if (i == REG_NUM)
+					break;
+			}
+			std::cout << endl;
+			if (i == REG_NUM)
+				break;
+		}
+
+		dout.Push(output);
 
 	} // *** ENDOF while(true)
 }   // *** ENDOF sc_cthread

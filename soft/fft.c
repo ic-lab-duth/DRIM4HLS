@@ -322,6 +322,10 @@ int main()
 
 		i += SAMPLE_SZ;
 	}
+	
+	//for( i = 0; i < SAMPLE_SZ; i++) {
+	//	printf("%d", inBuf[i]);
+	//}
 
 	return 0;
 }

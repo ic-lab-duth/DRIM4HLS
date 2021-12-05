@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/diamantis/systemc-2.3.3/include/**",
+                "/home/diamantis/systemc-2.3.3/src/**",
+                "/home/diamantis/matchlib_connections/include/**",
+                "/home/diamantis/ac_simutils/include/**",
+                "/home/diamantis/ac_types/include/**",
+                "/home/diamantis/HLS/hl5/**",
+                "/home/diamantis/HLS/hl5/src/**",
+                "/home/diamantis/HLS/hl5/tb/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

@@ -8,19 +8,19 @@
 // and overflow semantics are compliant with the RISC-V specs (page 32).
 //
 
+#ifndef __EXECUTE__H
+#define __EXECUTE__H
+
+#define BIT(_N) (1 << _N)
+
 #include <systemc.h>
-#include "cynw_flex_channels.h"
+#include <connections/connections.h>
 
 #include "defines.hpp"
 #include "globals.hpp"
 #include "hl5_datatypes.hpp"
 
 #include "syn_directives.hpp"
-
-#ifndef __EXECUTE__H
-#define __EXECUTE__H
-
-#define BIT(_N) (1 << _N)
 
 // Signed division quotient and remainder struct.
 struct div_res_t{
@@ -37,8 +37,8 @@ struct u_div_res_t{
 SC_MODULE(execute)
 {
 	// FlexChannel initiators
-	get_initiator< de_out_t > din;
-	put_initiator< exe_out_t > dout;
+	Connections::In< de_out_t > din;
+	Connections::Out< exe_out_t > dout;
 
 	// Forward
 	sc_out< reg_forward_t > fwd_exe;
@@ -75,9 +75,6 @@ SC_MODULE(execute)
 		SC_CTHREAD(perf_th, clk.pos());
 		reset_signal_is(rst, false);
 
-		din.clk_rst(clk, rst);
-		dout.clk_rst(clk, rst);
-		HLS_FLATTEN_ARRAY(csr);
 	}
 
 	// Member variables

@@ -8,7 +8,7 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
-#include "systemc.h"
+#include <systemc.h>
 
 // Miscellanous sizes. Most of these can be changed to obtain new architectures.
 #define XLEN        32      // Register width. 32 or 64. Currently only 32 is supported.

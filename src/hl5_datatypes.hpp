@@ -12,7 +12,7 @@
 #ifndef HL5_DATATYPES_H
 #define HL5_DATATYPES_H
 
-#include "systemc.h"
+#include <systemc.h>
 
 #include "defines.hpp"
 #include "globals.hpp"
@@ -31,6 +31,8 @@ struct fe_in_t
 	sc_bv< 1 > branch;
 	sc_bv< PC_LEN > jump_address;
 	sc_bv< PC_LEN > branch_address;
+
+	static const int width = 2 + 2*PC_LEN;
 
 	//
 	// Default constructor.
@@ -81,6 +83,15 @@ struct fe_in_t
 			branch_address = other.branch_address;
 			return *this;
 		}
+	
+	
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& jump; 
+		m& branch;
+		m& jump_address;
+		m& branch_address;	   
+  	}	
 
 };
 
@@ -139,6 +150,8 @@ struct de_out_t
 	sc_bv< PC_LEN > pc;
 	sc_bv< XLEN-12 > imm_u;
 	sc_uint< TAG_WIDTH > tag;
+
+	static const int width = 1 + 1 + 3 + 2 + ALUOP_SIZE + ALUSRC_SIZE + 3*XLEN - 12 + REG_ADDR + PC_LEN + TAG_WIDTH;
 
 	//
 	// Default constructor.
@@ -229,6 +242,23 @@ struct de_out_t
 			tag = other.tag;
 			return *this;
 		}
+	
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& regwrite; 
+		m& memtoreg;
+		m& ld;
+		m& st;
+		m& alu_op;
+		m& alu_src;
+		m& rs1;
+		m& rs2;
+		m& dest_reg;
+		m& pc;
+		m& imm_u;
+		m& tag;
+
+  	}	
 
 };
 //
@@ -298,6 +328,8 @@ struct exe_out_t        // TODO: fix all sizes
 	sc_bv< DATA_SIZE > mem_datain;
 	sc_bv< REG_ADDR > dest_reg;
 	sc_uint< TAG_WIDTH > tag;
+
+	static const int width = 3 + 2 + 1 + 1 + XLEN + DATA_SIZE + REG_ADDR + TAG_WIDTH;
 
 	//
 	// Default constructor.
@@ -369,6 +401,19 @@ struct exe_out_t        // TODO: fix all sizes
 			return *this;
 		}
 
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& ld; 
+		m& st;
+		m& memtoreg;
+		m& regwrite;
+		m& alu_res;
+		m& mem_datain;
+		m& dest_reg;
+		m& tag;
+
+  	}
+
 };
 //
 // sc_trace function.
@@ -426,6 +471,7 @@ struct mem_out_t
 	sc_bv< XLEN > regfile_data;
 	sc_uint< TAG_WIDTH > tag;
 
+	static const int width = 1 + XLEN + REG_ADDR + TAG_WIDTH;
 	//
 	// Default constructor.
 	//
@@ -476,6 +522,15 @@ struct mem_out_t
 			return *this;
 		}
 
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& regwrite; 
+		m& regfile_data;
+		m& regfile_address;
+		m& tag;
+
+  	}
+
 };
 //
 // sc_trace function.
@@ -524,6 +579,7 @@ struct reg_forward_t
 	bool ldst;
 	sc_uint< TAG_WIDTH > tag;
 
+	static const int width = XLEN + 1 + TAG_WIDTH;
 	//
 	// Default constructor.
 	//
@@ -568,6 +624,14 @@ struct reg_forward_t
 			tag = other.tag;
 			return *this;
 		}
+
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& regfile_data; 
+		m& ldst;
+		m& tag;
+
+  	}
 
 };
 //

@@ -11,13 +11,13 @@
 
 #include <systemc.h>
 
-#include "cynw_flex_channels.h"
+#include <connections/connections.h>
 
 #include "hl5_datatypes.hpp"
 #include "defines.hpp"
 #include "globals.hpp"
 
-#include "hl5_wrap.h"
+#include "hl5.hpp"
 
 #include "tb.hpp"
 
@@ -54,7 +54,7 @@ public:
 
 	/* The testbench, DUT, IMEM and DMEM modules. */
 	tb   *m_tb;
-	hl5_wrapper *m_dut;
+	hl5 *m_dut;
 
 	SC_CTOR(TOP)
 		: clk("clk")
@@ -66,7 +66,7 @@ public:
 	{
 		m_tb = new tb("tb", imem, dmem);
 
-		m_dut = new hl5_wrapper("dut", imem, dmem);
+		m_dut = new hl5("dut", imem, dmem);
 
 		// Connect the design module
 		m_dut->clk(clk);

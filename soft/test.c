@@ -6,8 +6,10 @@ int main(int argc, char **argv)
 	unsigned char output[4] = {0xff, 0xff, 0xff, 0xff};
 	int i;
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 4; i++) {
 		output[i] = input[i] * 3;
-
+		//printf("%d", output[i]);
+		//printf(" ");
+	}
 	return 0;
 }

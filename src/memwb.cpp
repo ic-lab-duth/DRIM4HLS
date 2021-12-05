@@ -4,16 +4,15 @@
 // memory.cpp - Robert Margelli
 // Implementation of the memwb stage ie combined memory and writeback stages.
 //
-
+#include <sstream>
 #include "memwb.hpp"
 
 void memwb::memwb_th(void)
 {
 MEMWB_RST:
-	{
-		PROTO_MEMWB_RST;
-		din.reset_get();
-		dout.reset_put();
+	{	
+		din.Reset();
+		dout.Reset();
 
 		// Write dummy data to decode feedback.
 		output.regfile_address = "00000";
@@ -23,34 +22,32 @@ MEMWB_RST:
 
 		do {wait();} while(!fetch_en); // Synchronize with fetch stage at startup.
 
-		dout.put(output);
+		dout.Push(output);
 		wait();
-		dout.put(output);
+		dout.Push(output);
 	}
 
 MEMWB_BODY:
 	while(true) {
-		PROTO_MEMWB_BODY;
-		BREAK_DMEM_DEP;
 
 		// Get
-		input = din.get();
-
+		input = din.Pop();
+		//cout << "@" << sc_time_stamp() << "\t" << name() << "sending input=" << input << endl ;
 		// Compute
 		// *** Memory access.
 
 		// WARNING: only supporting aligned memory accesses
-
 		// Preprocess address
 		unsigned int aligned_address = input.alu_res.to_uint();
 		unsigned char byte_index = (unsigned char) ((aligned_address & 0x3) << 3);
 		unsigned char halfword_index = (unsigned char) ((aligned_address & 0x2) << 3);
 
+		std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "aligned_address= "<< aligned_address <<  endl;
 		aligned_address = aligned_address >> 2;
 		sc_uint<BYTE> db;
 		sc_uint<2 * BYTE> dh;
 		sc_uint<XLEN> dw;
-
+		std::cout << endl;
 		wait();
 
 #ifndef STRATUS_HLS
@@ -65,7 +62,6 @@ MEMWB_BODY:
 #endif
 				std::stringstream stm;
 				stm << hex << "D$ access here2 -> 0x" << aligned_address << ". Value: " << input.mem_datain.to_uint() << std::endl;
-				SC_REPORT_INFO(sc_object::name(), stm.str().c_str());
 #ifndef VERBOSE
 			}
 #endif
@@ -78,24 +74,30 @@ MEMWB_BODY:
 			case LB_LOAD:
 				db = dmem[aligned_address].range(byte_index + BYTE - 1, byte_index);
 				mem_dout = ext_sign_byte(db);
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "LB_LOAD" <<  endl;
 				break;
 			case LH_LOAD:
 				dh = dmem[aligned_address].range(halfword_index + 2 * BYTE - 1, halfword_index);
 				mem_dout = ext_sign_halfword(dh);
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "LH_LOAD" <<  endl;
 				break;
 			case LW_LOAD:
 				dw = dmem[aligned_address];
 				mem_dout = dw;
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "LW_LOAD" <<  endl;
 				break;
 			case LBU_LOAD:
 				db = dmem[aligned_address].range(byte_index + BYTE - 1, byte_index);
 				mem_dout = ext_unsign_byte(db);
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "LBU_LOAD" <<  endl;
 				break;
 			case LHU_LOAD:
 				dh = dmem[aligned_address].range(halfword_index + 2 * BYTE - 1, halfword_index);
 				mem_dout = ext_unsign_halfword(dh);
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "LHU_LOAD" <<  endl;
 				break;
 			default:
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "NO_LOAD" <<  endl;
 				break;  // NO_LOAD
 			}
 		}
@@ -104,19 +106,24 @@ MEMWB_BODY:
 			case SB_STORE:  // store 8 bits of rs2
 				db = input.mem_datain.range(BYTE - 1, 0).to_uint();
 				dmem[aligned_address].range(byte_index + BYTE -1, byte_index) = db;
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "SB_STORE dmem[" << std::hex << aligned_address << "]=" << std::dec << dmem[aligned_address].range(byte_index + BYTE -1, byte_index) << endl;
 				break;
 			case SH_STORE:  // store 16 bits of rs2
 				dh = input.mem_datain.range(2 * BYTE - 1, 0).to_uint();
-				dmem[aligned_address].range(halfword_index + 2 * BYTE - 1, halfword_index) = dh;
+				dmem[aligned_address].range(byte_index + BYTE -1, byte_index);
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "SH_STORE dmem[" << std::hex << aligned_address << "]=" << std::dec << dmem[aligned_address].range(byte_index + BYTE -1, byte_index) << endl;
 				break;
 			case SW_STORE:  // store rs2
 				dw = input.mem_datain.to_uint();
 				dmem[aligned_address] = dw;
+				std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "SW_STORE dmem[" << std::hex << aligned_address << "]=" << std::dec << dmem[aligned_address] << endl;
 				break;
 			default:
+			std::cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << "NO STORE" << endl;
 				break;  // NO_STORE
 			}
 		}
+
 		// *** END of memory access.
 
 		/* Writeback */
@@ -126,7 +133,8 @@ MEMWB_BODY:
 		output.tag              = input.tag;
 
 		// Put
-		dout.put(output);
+		//cout << "@" << sc_time_stamp() << "\t" << name() << "sending output=" << output << endl ;
+		dout.Push(output);
 	}
 }
 

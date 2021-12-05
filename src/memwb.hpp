@@ -7,8 +7,7 @@
 #define __MEMWB__H
 
 #include <systemc.h>
-
-#include "cynw_flex_channels.h"
+#include <connections/connections.h>
 
 #include "defines.hpp"
 #include "globals.hpp"
@@ -19,8 +18,8 @@
 SC_MODULE(memwb)
 {
 	// FlexChannel initiators
-	get_initiator< exe_out_t > din;
-	put_initiator< mem_out_t > dout;
+	Connections::In< exe_out_t > din;
+	Connections::Out< mem_out_t > dout;
 
 	// Clock and reset signals
 	sc_in_clk clk;
@@ -52,10 +51,6 @@ SC_MODULE(memwb)
 	{
 		SC_CTHREAD(memwb_th, clk.pos());
 		reset_signal_is(rst, false);
-		din.clk_rst(clk, rst);
-		dout.clk_rst(clk, rst);
-
-		MAP_DCACHE;
 	}
 
 	// Member variables
