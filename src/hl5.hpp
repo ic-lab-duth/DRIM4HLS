@@ -51,7 +51,6 @@ public:
 	Connections::Combinational< de_out_t > de2exe_ch;
 	Connections::Combinational< mem_out_t > wb2de_ch; // Writeback loop
 	Connections::Combinational< exe_out_t > exe2mem_ch;
-
 	// Forwarding
 	sc_signal< reg_forward_t > fwd_exe_ch;
 

@@ -2,7 +2,7 @@ CXX = g++
 
 HOME := /home/diamantis
 SYSTEMC_HOME := /home/diamantis/systemc-2.3.3
-PROJECT_DIR := /home/diamantis/HLS/hl5
+PROJECT_DIR := /home/diamantis/HLS/hl5_clean
 
 INCDIR ?=
 INCDIRS = -isystem $(SYSTEMC_HOME)/include
@@ -15,7 +15,7 @@ INCDIRS += -isystem $(PROJECT_DIR)/src/
 
 LIBDIR = -L. -L$(SYSTEMC_HOME)/lib-linux64 -Wl,-rpath=$(SYSTEMC_HOME)/lib-linux64
 
-CFLAGS = -Wall -Wno-unknown-pragmas -Wno-unused-variable -Wno-unused-label $(INCDIRS) $(LIBDIR)
+CFLAGS =   -Wall -Wno-unknown-pragmas -Wno-unused-variable -Wno-unused-label $(INCDIRS) $(LIBDIR)
 USER_FLAGS = -DCONNECTIONS_ACCURATE_SIM -DSC_INCLUDE_DYNAMIC_PROCESSES
 
 # RAND_STALL

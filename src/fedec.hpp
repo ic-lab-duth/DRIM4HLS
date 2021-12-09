@@ -85,7 +85,7 @@ public:
 		, rst("rst")
 		, trap("trap")
 		, trap_cause("trap_cause")
-                , imem(_imem)
+    	, imem(_imem)
 	{
 		SC_CTHREAD(fedec_th, clk.pos());
 		reset_signal_is(rst, false);

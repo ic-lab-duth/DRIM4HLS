@@ -36,7 +36,6 @@ void tb::source()
 
 	std::ifstream dbg_prog;
 	dbg_prog.open(argv[1], std::ifstream::in);
-	std::cout << "Initial memory (imem)" << std::endl;
 	unsigned index;
 	unsigned address;
 

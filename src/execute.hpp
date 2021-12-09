@@ -20,8 +20,6 @@
 #include "globals.hpp"
 #include "hl5_datatypes.hpp"
 
-#include "syn_directives.hpp"
-
 // Signed division quotient and remainder struct.
 struct div_res_t{
 	sc_int<XLEN> quotient;
