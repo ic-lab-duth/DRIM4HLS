@@ -14,7 +14,7 @@
 #define BIT(_N) (1 << _N)
 
 #include <systemc.h>
-#include <connections/connections.h>
+#include <mc_connections.h>
 
 #include "defines.hpp"
 #include "globals.hpp"
@@ -37,17 +37,18 @@ SC_MODULE(execute)
 	// FlexChannel initiators
 	Connections::In< de_out_t > din;
 	Connections::Out< exe_out_t > dout;
+	Connections::Out< dmem_in_t > dmem_in;
 
 	// Forward
 	sc_out< reg_forward_t > fwd_exe;
-
+	
 	// Clock and reset signals
 	sc_in_clk clk;
 	sc_in<bool> rst;
 
 	// Thread prototype
 	void execute_th(void);
-	void perf_th(void);
+	//void perf_th(void);
 
 	// Support functions
 	sc_bv<XLEN> sign_extend_imm_s(sc_bv<12> imm);       // Sign extend the S-type immediate field.
@@ -63,22 +64,23 @@ SC_MODULE(execute)
 	SC_CTOR(execute)
 		: din("din")
 		, dout("dout")
+		, dmem_in("dmem_in")
 		, fwd_exe("fwd_exe")
 		, clk("clk")
 		, rst("rst")
 	{
 		SC_CTHREAD(execute_th, clk.pos());
 		reset_signal_is(rst, false);
-
-		SC_CTHREAD(perf_th, clk.pos());
-		reset_signal_is(rst, false);
-
 	}
 
 	// Member variables
 	de_out_t input;
 	exe_out_t output;
+	dmem_in_t dmem_din;
+
 	sc_uint<XLEN> csr[CSR_NUM]; // Control and status registers.
+	
+	reg_forward_t forward;
 };
 
 

@@ -10,41 +10,38 @@
 
 #include <time.h>
 #include <systemc.h>
-#include <connections/connections.h>
+#include "../src/hl5_datatypes.hpp"
 
-#include "hl5_datatypes.hpp"
-
-#include "globals.hpp"
-#include "defines.hpp"
+#include "../src/globals.hpp"
+#include "../src/defines.hpp"
 
 SC_MODULE(tb)
 {
 public:
 	// Declaration of clock and reset parameters
-	sc_in < bool > clk;
-	sc_in < bool > rst;
+	sc_in < bool > CCS_INIT_S1(clk);
+	sc_in < bool > CCS_INIT_S1(rst);
 	// End of simulation signal.
-	sc_in < bool > program_end;
+	sc_in < bool > CCS_INIT_S1(program_end);
 	// Fetch enable signal.
-	sc_out < bool > fetch_en;
+	sc_out < bool > CCS_INIT_S1(fetch_en);
 	// CPU Reset
-	sc_out < bool > cpu_rst;
+	sc_out < bool > CCS_INIT_S1(cpu_rst);
 	// Entry point
-	sc_out < unsigned > entry_point;
-
-	// TODO: removeme
-	// sc_in < bool > main_start;
-	// sc_in < bool > main_end;
+	sc_out < unsigned > CCS_INIT_S1(entry_point);
 
 	// Instruction counters
-	sc_in < long int > icount; 
-	sc_in < long int > j_icount; 
-	sc_in < long int > b_icount; 
-	sc_in < long int > m_icount; 
-	sc_in < long int > o_icount; 
+	sc_in < long int > CCS_INIT_S1(icount); 
+	sc_in < long int > CCS_INIT_S1(j_icount); 
+	sc_in < long int > CCS_INIT_S1(b_icount); 
+	sc_in < long int > CCS_INIT_S1(m_icount); 
+	sc_in < long int > CCS_INIT_S1(o_icount); 
 
 	sc_uint<XLEN> *imem;
 	sc_uint<XLEN> *dmem;
+	
+	void source();
+	void sink();
 
 	SC_HAS_PROCESS(tb);
 	tb(sc_module_name name, sc_uint<XLEN> imem[ICACHE_SIZE], sc_uint<XLEN> dmem[DCACHE_SIZE])
@@ -54,8 +51,6 @@ public:
 		, fetch_en("fetch_en")
 		, cpu_rst("cpu_rst")
 		, entry_point("entry_point")
-		// , main_start("main_start")
-		// , main_end("main_end")
 		, icount("icount")
 		, j_icount("j_icount")
 		, b_icount("b_icount")
@@ -69,12 +64,9 @@ public:
 		SC_CTHREAD(sink, clk.pos());
 		reset_signal_is(rst, 0);
 	}
-	void source();
-	void sink();
 
     double exec_start;
 	const char * const *argv = sc_argv();
-	// double exec_main_start;
 };
 
 #endif

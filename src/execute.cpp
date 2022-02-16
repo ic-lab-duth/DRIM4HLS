@@ -14,21 +14,23 @@
   #define DPRINT(msg)
 #endif
 
-struct debug_exe_out        // TODO: fix all sizes
-{
-	//
-	// Member declarations.
-	//
-	sc_bv< 3 > ld;
-	sc_bv< 2 > st;
-	sc_bv< 1 > memtoreg;
-	sc_bv< 1 > regwrite;
-	sc_bv< XLEN > alu_res;
-	sc_bv< DATA_SIZE > mem_datain;
-	sc_bv< REG_ADDR > dest_reg;
-	sc_uint< TAG_WIDTH > tag;
+#ifndef __SYNTHESIS__
+	struct debug_exe_out        // TODO: fix all sizes
+	{
+		//
+		// Member declarations.
+		//
+		sc_bv< 3 > ld;
+		sc_bv< 2 > st;
+		sc_bv< 1 > memtoreg;
+		sc_bv< 1 > regwrite;
+		sc_bv< XLEN > alu_res;
+		sc_bv< DATA_SIZE > mem_datain;
+		sc_bv< REG_ADDR > dest_reg;
+		sc_uint< TAG_WIDTH > tag;
 
-} debug_exe_out_t;
+	} debug_exe_out_t;
+#endif
 
 u_div_res_t execute::udiv_func(sc_uint<XLEN> num, sc_uint<XLEN> den)
 {
@@ -89,28 +91,13 @@ div_res_t execute::div_func(sc_int<XLEN> num, sc_int<XLEN> den)
 	return div_res;
 }
 
-void execute::perf_th(void)
-{
-PERF_RST:
-	{
-        csr[MCYCLE_I] = 0x0; // Cycle count (32-bits only for now)
-		wait();
-		wait();
-	}
-
-        while (true) {
-            csr[MCYCLE_I]++;
-            wait();
-        }
-
-}
-
 void execute::execute_th(void)
 {
 EXE_RST:
-	{	//cout << "@" << sc_time_stamp() << "\t" << name() << " Initialize execute" << endl ;
+	{	
 		din.Reset();
 		dout.Reset();
+		dmem_in.Reset();
 		output.tag = 0;
 
                 csr[MISA_I] = 0x40001101; // RV32IMA
@@ -118,16 +105,18 @@ EXE_RST:
                 csr[MIMPID_I] = 0x0; // Not implemented (processor revision)
                 csr[MHARTID_I] = 0x0; // Single thread (always 0)
                 csr[MINSTRET_I] = 0x0; // Retired instructions
+                csr[MCYCLE_I] = 0x0; // Cycle count (32-bits only for now)
 		wait();
 		wait();
 	}
 
 EXE_BODY:
 	while(true) {
-
+		csr[MCYCLE_I]++;
 		// Get
 		input = din.Pop();
-		//cout << "@" << sc_time_stamp() << "\t" << name() << " receiving input input=" << input << endl ;
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "received from fetch " << input << endl);
+
 		// Compute
 		output.regwrite = input.regwrite;
 		output.memtoreg = input.memtoreg;
@@ -370,22 +359,34 @@ EXE_BODY:
 
 
 		// Forward
-		reg_forward_t forward;
 		forward.regfile_data = output.alu_res;
 		forward.tag = output.tag;
-		if (input.ld != NO_LOAD || input.st != NO_STORE)
+		if (input.ld != NO_LOAD || input.st != NO_STORE) {
 			forward.ldst = true;
-		else
+			dmem_din.read_en = true;
+		}
+		else {
 			forward.ldst = false;
-
+			dmem_din.read_en = false;
+		}
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "forward.sync_fewb " << forward.sync_fewb <<endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " output.ld " << output.ld << endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " output.st " << output.st << endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " output.regwrite  " << output.regwrite <<endl);
 		fwd_exe.write(forward);
 
                 if (!nop)
                     csr[MINSTRET_I]++;
-
+		unsigned int dmem_read_index = output.alu_res.to_uint();
+		dmem_din.data_addr = dmem_read_index >> 2;
 		// Put
-		DPRINT(endl);
+		//DPRINT(endl);
 		dout.Push(output);
+		dmem_in.Push(dmem_din);
+		
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "push to mem " << output << endl);
+
+		DPRINT(endl);
 		wait();
 	}
 }

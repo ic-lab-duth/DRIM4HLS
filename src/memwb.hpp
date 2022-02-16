@@ -7,11 +7,10 @@
 #define __MEMWB__H
 
 #include <systemc.h>
-#include <connections/connections.h>
 
+#include <mc_connections.h>
 #include "defines.hpp"
 #include "globals.hpp"
-#include "syn_directives.hpp"
 #include "hl5_datatypes.hpp"
 
 
@@ -21,15 +20,15 @@ SC_MODULE(memwb)
 	Connections::In< exe_out_t > din;
 	Connections::Out< mem_out_t > dout;
 
+	Connections::Out< dmem_in_t > dmem_in;
+	Connections::In< dmem_out_t > dmem_out;
+
 	// Clock and reset signals
 	sc_in_clk clk;
 	sc_in<bool> rst;
 
 	// Enable fetch
 	sc_in<bool> fetch_en;   // Used to synchronize writeback with fetch at reset.
-
-	// Instruction cache pointer to external memory
-	sc_uint<XLEN> *dmem;
 
 	// Thread prototype
 	void memwb_th(void);
@@ -41,22 +40,27 @@ SC_MODULE(memwb)
 
 	// Constructor
 	SC_HAS_PROCESS(memwb);
-	memwb(sc_module_name name, sc_uint<XLEN> _dmem[DCACHE_SIZE])
+	memwb(sc_module_name name)
 		: din("din")
 		, dout("dout")
 		, clk("clk")
 		, rst("rst")
 		, fetch_en("fetch_en")
-		, dmem(_dmem)
 	{
 		SC_CTHREAD(memwb_th, clk.pos());
 		reset_signal_is(rst, false);
 	}
 
 	// Member variables
-	exe_out_t   input;
-	mem_out_t   output;
+	exe_out_t input;
+	exe_out_t temp_input;
+	//exe_out_t buffer[2];
+	
+	mem_out_t output;
 	sc_bv<DATA_SIZE> mem_dout;  // Temporarily stores the value read from memory with a load instruction
+
+	dmem_in_t		  dmem_dout;
+	dmem_out_t		  dmem_din;
 };
 
 

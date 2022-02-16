@@ -10,41 +10,37 @@
 
 #include <systemc.h>
 #include <bitset>
-#include <connections/connections.h>
+#include <mc_connections.h>
 
 #include "defines.hpp"
 #include "globals.hpp"
-#include "syn_directives.hpp"
 #include "hl5_datatypes.hpp"
-
-#include "fedec.hpp"
 
 SC_MODULE(fedec)
 {
 public:
 	// FlexChannel initiators
-	Connections::Out< de_out_t > dout;
-	Connections::In< mem_out_t > feed_from_wb;
+	Connections::Out< de_out_t > CCS_INIT_S1(dout);
+	Connections::In< mem_out_t > CCS_INIT_S1(feed_from_wb);
+
+	Connections::Out< imem_in_t > CCS_INIT_S1(imem_in);
+	Connections::In< imem_out_t > CCS_INIT_S1(imem_out);
 
 	// Forward
-	sc_in< reg_forward_t > fwd_exe;
+	sc_in< reg_forward_t > CCS_INIT_S1(fwd_exe);
 
 	// End of simulation signal.
-	sc_out < bool > program_end;
+	sc_out < bool > CCS_INIT_S1(program_end);
 
 	// Fetch enable signal.
-	sc_in < bool > fetch_en;
+	sc_in < bool > CCS_INIT_S1(fetch_en);
 
 	// Entry point
-	sc_in < unsigned > entry_point;
+	sc_in < unsigned > CCS_INIT_S1(entry_point);
 
 	// Clock and reset signals
-	sc_in_clk clk;
-	sc_in< bool > rst;
-
-	// TODO: removeme
-	// sc_out < bool > main_start;
-	// sc_out < bool > main_end;
+	sc_in_clk CCS_INIT_S1(clk);
+	sc_in< bool > CCS_INIT_S1(rst);
 
 	// Instruction counters
 	sc_out < long int > icount; 
@@ -54,11 +50,8 @@ public:
 	sc_out < long int > o_icount; 
 
 	// Trap signals. TODO: not used. Left for future implementations.
-	sc_signal< bool > trap; //sc_out
-	sc_signal< sc_uint<LOG2_NUM_CAUSES> > trap_cause; //sc_out
-
-	// Instruction cache pointer to external memory
-	sc_uint<XLEN> *imem;
+	sc_signal< bool > CCS_INIT_S1(trap); //sc_out
+	sc_signal< sc_uint<LOG2_NUM_CAUSES> > CCS_INIT_S1(trap_cause); //sc_out
 
 	// Thread prototype
 	void fedec_th(void);
@@ -68,15 +61,13 @@ public:
 	sc_bv<PC_LEN> sign_extend_branch(sc_bv<13> imm);
 
 	SC_HAS_PROCESS(fedec);
-	fedec(sc_module_name name, sc_uint<XLEN> _imem[ICACHE_SIZE])
+	fedec(sc_module_name name)
 		: dout("dout")
 		, feed_from_wb("feed_from_wb")
 		, fwd_exe("fwd_exe")
 		, program_end("program_end")
 		, fetch_en("fetch_en")
 		, entry_point("entry_point")
-		// , main_start("main_start")
-		// , main_end("main_end")
 		, j_icount("j_icount")
 		, b_icount("b_icount")
 		, m_icount("m_icount")
@@ -85,7 +76,8 @@ public:
 		, rst("rst")
 		, trap("trap")
 		, trap_cause("trap_cause")
-    	, imem(_imem)
+		, imem_out("imem_out")
+		, imem_in("imem_in")
 	{
 		SC_CTHREAD(fedec_th, clk.pos());
 		reset_signal_is(rst, false);
@@ -96,10 +88,17 @@ public:
 	sc_uint<PC_LEN>   pc;           // Init. to -4, then before first insn fetch it will be updated to 0.
 	sc_bv<INSN_LEN>   insn;         // Contains full instruction fetched from IMEM. Used in decoding.
 	fe_in_t           self_feed;    // Contains branch and jump data.
+	unsigned int      imem_data;	// Contains instruction data		 
 
+	imem_in_t		  imem_dout;
+	imem_out_t		  imem_din;
 	// Member variables (DECODE)
 	mem_out_t   feedinput;
 	de_out_t    output;
+
+	sc_uint<XLEN> instr_data; 
+	bool instr_valid; 
+	unsigned int instr_addr;
 	// NB. x0 is included in this regfile so it is not a real hardcoded 0
 	// constant. The writeback section of fedec has a guard fro writes on
 	// x0. For double protection, some instructions that want to write into
@@ -112,6 +111,8 @@ public:
 	// 'hiccuping'. It magically works.
 	sc_uint<2>  position;
 	bool freeze;
+	// Sychronize PC when jump or branch taken occurs
+	bool sync_pc;
 	sc_uint<TAG_WIDTH> tag;
 
 	sc_uint<PC_LEN> return_address;

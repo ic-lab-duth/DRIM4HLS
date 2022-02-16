@@ -13,6 +13,7 @@
 #define HL5_DATATYPES_H
 
 #include <systemc.h>
+#include <mc_connections.h>
 
 #include "defines.hpp"
 #include "globals.hpp"
@@ -92,38 +93,36 @@ struct fe_in_t
 		m& jump_address;
 		m& branch_address;	   
   	}	
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const fe_in_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.jump, in_name + std::string(".jump"));
+		sc_trace(tf, object.branch, in_name + std::string(".branch"));
+		sc_trace(tf, object.jump_address, in_name + std::string(".jump_address"));
+		sc_trace(tf, object.branch_address, in_name + std::string(".branch_address"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const fe_in_t& object )
+	{
+
+		os << "(";
+		os <<  object.jump;
+		os << "," <<  object.branch;
+		os << "," <<  object.jump_address;
+		os << "," <<  object.branch_address;
+		os << ")";
+
+		return os;
+	}
 
 };
 
-//
-// sc_trace function.
-//
-inline void sc_trace( sc_trace_file* tf, const fe_in_t& object, const std::string& in_name )
-{
-	if (tf)
-	{
-		tf->trace( object.jump, in_name + std::string(".jump"));
-		tf->trace( object.branch, in_name + std::string(".branch"));
-		tf->trace( object.jump_address, in_name + std::string(".jump_address"));
-		tf->trace( object.branch_address, in_name + std::string(".branch_address"));
-	}
-}
-
-//
-// stream operator.
-//
-inline ostream & operator << ( ostream & os, const fe_in_t& object )
-{
-#ifndef STRATUS_HLS
-	os << "(";
-	os <<  object.jump;
-	os << "," <<  object.branch;
-	os << "," <<  object.jump_address;
-	os << "," <<  object.branch_address;
-	os << ")";
-#endif
-	return os;
-}
 #endif
 // ------------ END fe_in_t
 
@@ -258,54 +257,52 @@ struct de_out_t
 		m& imm_u;
 		m& tag;
 
-  	}	
+  	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const de_out_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.regwrite, in_name + std::string(".regwrite"));
+		sc_trace(tf, object.memtoreg, in_name + std::string(".memtoreg"));
+		sc_trace(tf, object.ld, in_name + std::string(".ld"));
+		sc_trace(tf, object.st, in_name + std::string(".st"));
+		sc_trace(tf, object.alu_op, in_name + std::string(".alu_op"));
+		sc_trace(tf, object.alu_src, in_name + std::string(".alu_src"));
+		sc_trace(tf, object.rs1, in_name + std::string(".rs1"));
+		sc_trace(tf, object.rs2, in_name + std::string(".rs2"));
+		sc_trace(tf, object.dest_reg, in_name + std::string(".dest_reg"));
+		sc_trace(tf, object.pc, in_name + std::string(".pc"));
+		sc_trace(tf, object.imm_u, in_name + std::string(".imm_u"));
+		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const de_out_t& object )
+	{
+		os << "(";
+		os <<  object.regwrite;
+		os << "," <<  object.memtoreg;
+		os << "," <<  object.ld;
+		os << "," <<  object.st;
+		os << "," <<  object.alu_op;
+		os << "," <<  object.alu_src;
+		os << "," <<  object.rs1;
+		os << "," <<  object.rs2;
+		os << "," <<  object.dest_reg;
+		os << "," <<  object.pc;
+		os << "," <<  object.imm_u;
+		os << "," <<  object.tag;
+		os << ")";
+
+		return os;
+	}
 
 };
-//
-// sc_trace function.
-//
-inline void sc_trace( sc_trace_file* tf, const de_out_t& object, const std::string& in_name )
-{
-	if (tf)
-	{
-		tf->trace( object.regwrite, in_name + std::string(".regwrite"));
-		tf->trace( object.memtoreg, in_name + std::string(".memtoreg"));
-		tf->trace( object.ld, in_name + std::string(".ld"));
-		tf->trace( object.st, in_name + std::string(".st"));
-		tf->trace( object.alu_op, in_name + std::string(".alu_op"));
-		tf->trace( object.alu_src, in_name + std::string(".alu_src"));
-		tf->trace( object.rs1, in_name + std::string(".rs1"));
-		tf->trace( object.rs2, in_name + std::string(".rs2"));
-		tf->trace( object.dest_reg, in_name + std::string(".dest_reg"));
-		tf->trace( object.pc, in_name + std::string(".pc"));
-		tf->trace( object.imm_u, in_name + std::string(".imm_u"));
-		tf->trace( object.tag, in_name + std::string(".tag"));
-	}
-}
 
-//
-// stream operator.
-//
-inline ostream & operator << ( ostream & os, const de_out_t& object )
-{
-#ifndef STRATUS_HLS
-	os << "(";
-	os <<  object.regwrite;
-	os << "," <<  object.memtoreg;
-	os << "," <<  object.ld;
-	os << "," <<  object.st;
-	os << "," <<  object.alu_op;
-	os << "," <<  object.alu_src;
-	os << "," <<  object.rs1;
-	os << "," <<  object.rs2;
-	os << "," <<  object.dest_reg;
-	os << "," <<  object.pc;
-	os << "," <<  object.imm_u;
-	os << "," <<  object.tag;
-	os << ")";
-#endif
-	return os;
-}
 #endif
 // ------------ END de_out_t
 
@@ -413,45 +410,43 @@ struct exe_out_t        // TODO: fix all sizes
 		m& tag;
 
   	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const exe_out_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.ld, in_name + std::string(".ld"));
+		sc_trace(tf, object.st, in_name + std::string(".st"));
+		sc_trace(tf, object.memtoreg, in_name + std::string(".memtoreg"));
+		sc_trace(tf, object.regwrite, in_name + std::string(".regwrite"));
+		sc_trace(tf, object.alu_res, in_name + std::string(".alu_res"));
+		sc_trace(tf, object.mem_datain, in_name + std::string(".mem_datain"));
+		sc_trace(tf, object.dest_reg, in_name + std::string(".dest_reg"));
+		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const exe_out_t& object )
+	{
+		os << "(";
+		os <<  object.ld;
+		os << "," <<  object.st;
+		os << "," <<  object.memtoreg;
+		os << "," <<  object.regwrite;
+		os << "," <<  object.alu_res;
+		os << "," <<  object.mem_datain;
+		os << "," <<  object.dest_reg;
+		os << "," <<  object.tag;
+		os << ")";
+
+		return os;
+	}
 
 };
-//
-// sc_trace function.
-//
-inline void sc_trace( sc_trace_file* tf, const exe_out_t& object, const std::string& in_name )
-{
-	if (tf)
-	{
-		tf->trace( object.ld, in_name + std::string(".ld"));
-		tf->trace( object.st, in_name + std::string(".st"));
-		tf->trace( object.memtoreg, in_name + std::string(".memtoreg"));
-		tf->trace( object.regwrite, in_name + std::string(".regwrite"));
-		tf->trace( object.alu_res, in_name + std::string(".alu_res"));
-		tf->trace( object.mem_datain, in_name + std::string(".mem_datain"));
-		tf->trace( object.dest_reg, in_name + std::string(".dest_reg"));
-		tf->trace( object.tag, in_name + std::string(".tag"));
-	}
-}
 
-//
-// stream operator.
-//
-inline ostream & operator << ( ostream & os, const exe_out_t& object )
-{
-#ifndef STRATUS_HLS
-	os << "(";
-	os <<  object.ld;
-	os << "," <<  object.st;
-	os << "," <<  object.memtoreg;
-	os << "," <<  object.regwrite;
-	os << "," <<  object.alu_res;
-	os << "," <<  object.mem_datain;
-	os << "," <<  object.dest_reg;
-	os << "," <<  object.tag;
-	os << ")";
-#endif
-	return os;
-}
 #endif
 // ------------ END exe_out_t
 
@@ -471,15 +466,15 @@ struct mem_out_t
 	sc_bv< XLEN > regfile_data;
 	sc_uint< TAG_WIDTH > tag;
 
-	static const int width = 1 + XLEN + REG_ADDR + TAG_WIDTH;
+	static const int width = 1 + REG_ADDR + XLEN + TAG_WIDTH;
 	//
 	// Default constructor.
 	//
 	mem_out_t()
 		{
 			regwrite    = "0";
-			regfile_data    = (sc_bv< XLEN >)0;
 			regfile_address = (sc_bv< REG_ADDR >)0;
+			regfile_data    = (sc_bv< XLEN >)0;
 			tag             = (sc_uint< TAG_WIDTH >)0;
 		}
 
@@ -489,8 +484,8 @@ struct mem_out_t
 	mem_out_t( const mem_out_t& other )
 		{
 			regwrite = other.regwrite;
-			regfile_data = other.regfile_data;
 			regfile_address = other.regfile_address;
+			regfile_data = other.regfile_data;
 			tag = other.tag;
 		}
 
@@ -516,51 +511,47 @@ struct mem_out_t
 	inline mem_out_t& operator = ( const mem_out_t& other )
 		{
 			regwrite = other.regwrite;
-			regfile_data = other.regfile_data;
 			regfile_address = other.regfile_address;
+			regfile_data = other.regfile_data;
 			tag = other.tag;
 			return *this;
 		}
 
 	template<unsigned int Size>
   	void Marshall(Marshaller<Size>& m) {
-    	m& regwrite; 
+    	m& regwrite;
+    	m& regfile_address;
 		m& regfile_data;
-		m& regfile_address;
 		m& tag;
 
   	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const mem_out_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.regwrite, in_name + std::string(".regwrite"));
+		sc_trace(tf, object.regfile_address, in_name + std::string(".regfile_address"));
+		sc_trace(tf, object.regfile_data, in_name + std::string(".regfile_data"));
+		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const mem_out_t& object )
+	{
+		os << "(";
+		os <<  object.regwrite;
+		os << "," <<  object.regfile_address;
+		os << "," <<  object.regfile_data;
+		os << "," <<  object.tag;
+		os << ")";
+		return os;
+	}
 
 };
-//
-// sc_trace function.
-//
-inline void sc_trace( sc_trace_file* tf, const mem_out_t& object, const std::string& in_name )
-{
-	if (tf)
-	{
-		tf->trace( object.regwrite, in_name + std::string(".regwrite"));
-		tf->trace( object.regfile_data, in_name + std::string(".regfile_data"));
-		tf->trace( object.regfile_address, in_name + std::string(".regfile_address"));
-		tf->trace( object.tag, in_name + std::string(".tag"));
-	}
-}
-
-//
-// stream operator.
-//
-inline ostream & operator << ( ostream & os, const mem_out_t& object )
-{
-#ifndef STRATUS_HLS
-	os << "(";
-	os <<  object.regwrite;
-	os << "," <<  object.regfile_data;
-	os << "," <<  object.regfile_address;
-	os << "," <<  object.tag;
-	os << ")";
-#endif
-	return os;
-}
 #endif
 // ------------ mem_out_t
 
@@ -577,9 +568,10 @@ struct reg_forward_t
 	//
 	sc_bv< XLEN > regfile_data;
 	bool ldst;
+	bool sync_fewb;
 	sc_uint< TAG_WIDTH > tag;
 
-	static const int width = XLEN + 1 + TAG_WIDTH;
+	static const int width = XLEN + 1 + TAG_WIDTH + 1;
 	//
 	// Default constructor.
 	//
@@ -587,6 +579,7 @@ struct reg_forward_t
 		{
 			regfile_data    = (sc_bv< XLEN >)0;
 			ldst            = false;
+			sync_fewb       = false;
 			tag             = (sc_uint< TAG_WIDTH >)0;
 		}
 
@@ -597,6 +590,7 @@ struct reg_forward_t
 		{
 			regfile_data = other.regfile_data;
 			ldst = other.ldst;
+			sync_fewb = other.sync_fewb;
 			tag = other.tag;
 		}
 
@@ -608,6 +602,8 @@ struct reg_forward_t
 			if ( !(regfile_data == other.regfile_data) )
 				return false;
 			if ( !(ldst == other.ldst) )
+				return false;
+			if ( !(sync_fewb == other.sync_fewb) )
 				return false;
 			if ( !(tag == other.tag) )
 				return false;
@@ -621,6 +617,7 @@ struct reg_forward_t
 		{
 			regfile_data = other.regfile_data;
 			ldst = other.ldst;
+			sync_fewb = other.sync_fewb;
 			tag = other.tag;
 			return *this;
 		}
@@ -629,44 +626,396 @@ struct reg_forward_t
   	void Marshall(Marshaller<Size>& m) {
     	m& regfile_data; 
 		m& ldst;
+		m& sync_fewb;
 		m& tag;
 
   	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const reg_forward_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.regfile_data, in_name + std::string(".regfile_data"));
+		sc_trace(tf, object.ldst, in_name + std::string(".ldst"));
+		sc_trace(tf, object.sync_fewb, in_name + std::string(".sync_fewb"));
+		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const reg_forward_t& object )
+	{
+		os << "(";
+		os <<  std::hex << object.regfile_data.to_uint() << std::dec;
+		if (object.ldst)
+			os << "," << " mem";
+		os << "," <<  object.tag;
+		os << "," <<  object.sync_fewb;
+		os << ")";
+		return os;
+	}
 
 };
-//
-// sc_trace function.
-//
-inline void sc_trace( sc_trace_file* tf, const reg_forward_t& object, const std::string& in_name )
-{
-	if (tf)
-	{
-		tf->trace( object.regfile_data, in_name + std::string(".regfile_data"));
-		tf->trace( object.ldst, in_name + std::string(".ldst"));
-		tf->trace( object.tag, in_name + std::string(".tag"));
-	}
-}
 
-//
-// stream operator.
-//
-inline ostream & operator << ( ostream & os, const reg_forward_t& object )
-{
-#ifndef STRATUS_HLS
-	os << "(";
-	os <<  std::hex << object.regfile_data.to_uint() << std::dec;
-	if (object.ldst)
-		os << "," << " mem";
-	os << "," <<  object.tag;
-	os << ")";
-#endif
-	return os;
-}
+
 #endif
 // ------------ reg_forward_t
 
+// IMEMORY
+// ------------ imem_in_t
+#ifndef imem_in_t_SC_WRAPPER_TYPE
+#define imem_in_t_SC_WRAPPER_TYPE 1
+
+struct imem_in_t
+{
+	//
+	// Member declarations.
+	//
+	sc_uint< XLEN > instr_addr;
+	bool valid;
+	
+	static const int width = 1 + XLEN;
+	//
+	// Default constructor.
+	//
+	imem_in_t()
+		{
+			instr_addr    = (sc_uint< XLEN >)0;
+			valid 		  = false;
+		}
+
+	//
+	// Copy constructor.
+	//
+	imem_in_t( const imem_in_t& other )
+		{
+			instr_addr = other.instr_addr;
+			valid = other.valid;
+		}
+
+	//
+	// Comparison operator.
+	//
+	inline bool operator == ( const imem_in_t& other )
+		{
+			if ( !(instr_addr == other.instr_addr) )
+				return false;
+			if ( !(valid == other.valid) )
+				return false;
+			return true;
+		}
+
+	//
+	// Assignment operator from imem_in_t.
+	//
+	inline imem_in_t& operator = ( const imem_in_t& other )
+		{
+			instr_addr = other.instr_addr;
+			valid = other.valid;
+			return *this;
+		}
+
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& instr_addr; 
+		m& valid;
+  	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const imem_in_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.instr_addr, in_name + std::string(".instr_addr"));
+		sc_trace(tf, object.valid, in_name + std::string(".valid"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const imem_in_t& object )
+	{
+		os << "(";
+		os <<  object.instr_addr;
+		os << "," <<  object.valid;
+		os << ")";
+		return os;
+	}
+
+};
+#endif
+// ------------ imem_in_t
+
+// ------------ imem_out_t
+#ifndef imem_out_t_SC_WRAPPER_TYPE
+#define imem_out_t_SC_WRAPPER_TYPE 1
+
+struct imem_out_t
+{
+	//
+	// Member declarations.
+	//
+	sc_uint< XLEN > instr_data;
+	
+	static const int width = XLEN;
+	//
+	// Default constructor.
+	//
+	imem_out_t()
+		{
+			instr_data    = (sc_uint< XLEN >)0;
+		}
+
+	//
+	// Copy constructor.
+	//
+	imem_out_t( const imem_out_t& other )
+		{
+			instr_data = other.instr_data;
+		}
+
+	//
+	// Comparison operator.
+	//
+	inline bool operator == ( const imem_out_t& other )
+		{
+			if ( !(instr_data == other.instr_data) )
+				return false;
+			return true;
+		}
+
+	//
+	// Assignment operator from imem_out_t.
+	//
+	inline imem_out_t& operator = ( const imem_out_t& other )
+		{
+			instr_data = other.instr_data;
+			return *this;
+		}
+
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& instr_data; 
+  	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const imem_out_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.instr_data, in_name + std::string(".instr_data"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const imem_out_t& object )
+	{
+		os << "(";
+		os <<  object.instr_data;
+		os << ")";
+		return os;
+	}
+
+};
+#endif
+// ------------ imem_out_t
+
+// ------------ dmem_in_t
+#ifndef dmem_in_t_SC_WRAPPER_TYPE
+#define dmem_in_t_SC_WRAPPER_TYPE 1
+
+struct dmem_in_t
+{
+	//
+	// Member declarations.
+	//
+	sc_uint< XLEN > data_addr;
+	sc_uint< XLEN > data_in;
+	bool valid;
+	bool read_en;
+	bool write_en;
+	
+	static const int width = 2*XLEN + 3;
+	//
+	// Default constructor.
+	//
+	dmem_in_t()
+		{
+			data_addr    = (sc_uint< XLEN >)0;
+			data_in    = (sc_uint< XLEN >)0;
+			valid		 = false;
+			read_en		 = false;
+			write_en		 = false;
+		}
+
+	//
+	// Copy constructor.
+	//
+	dmem_in_t( const dmem_in_t& other )
+		{
+			data_addr = other.data_addr;
+			data_in = other.data_in;
+			valid = other.valid;
+			read_en = other.read_en;
+			write_en = other.write_en;
+		}
+
+	//
+	// Comparison operator.
+	//
+	inline bool operator == ( const dmem_in_t& other )
+		{
+			if ( !(data_addr == other.data_addr) )
+				return false;
+			if ( !(data_in == other.data_in) )
+				return false;
+			if ( !(valid == other.valid) )
+				return false;
+			if ( !(read_en == other.read_en) )
+				return false;
+			if ( !(write_en == other.write_en) )
+				return false;
+			return true;
+		}
+
+	//
+	// Assignment operator from dmem_in_t.
+	//
+	inline dmem_in_t& operator = ( const dmem_in_t& other )
+		{
+			data_addr = other.data_addr;
+			data_in = other.data_in;
+			valid = other.valid;
+			read_en = other.read_en;
+			write_en = other.write_en;
+			return *this;
+		}
+
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& data_addr;
+		m& data_in; 
+		m& valid; 
+		m& read_en;
+		m& write_en; 
+  	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const dmem_in_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.data_addr, in_name + std::string(".data_addr"));
+		sc_trace(tf, object.data_in, in_name + std::string(".data_in"));
+		sc_trace(tf, object.valid, in_name + std::string(".valid"));
+		sc_trace(tf, object.read_en, in_name + std::string(".read_en"));
+		sc_trace(tf, object.write_en, in_name + std::string(".write_en"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const dmem_in_t& object )
+	{
+		os << "(";
+		os <<  object.data_addr;
+		os <<  object.data_in;
+		os <<  object.valid;
+		os <<  object.read_en;
+		os <<  object.write_en;
+		os << ")";
+		return os;
+	}
+
+};
+#endif
+// ------------ dmem_in_t
 
 
+// ------------ dmem_out_t
+#ifndef dmem_out_t_SC_WRAPPER_TYPE
+#define dmem_out_t_SC_WRAPPER_TYPE 1
 
+struct dmem_out_t
+{
+	//
+	// Member declarations.
+	//
+	sc_uint< XLEN > data_out;
+	bool			valid;
+	
+	static const int width = XLEN + 1;
+	//
+	// Default constructor.
+	//
+	dmem_out_t()
+		{
+			data_out    = (sc_uint< XLEN >)0;
+			valid		= false;
+		}
+
+	//
+	// Copy constructor.
+	//
+	dmem_out_t( const dmem_out_t& other )
+		{
+			data_out = other.data_out;
+			valid	 = other.valid;
+		}
+
+	//
+	// Comparison operator.
+	//
+	inline bool operator == ( const dmem_out_t& other )
+		{
+			if ( !(data_out == other.data_out) )
+				return false;
+			if ( !(valid == other.valid) )
+				return false;
+			return true;
+		}
+
+	//
+	// Assignment operator from dmem_out_t.
+	//
+	inline dmem_out_t& operator = ( const dmem_out_t& other )
+		{
+			data_out = other.data_out;
+			valid 	 = other.valid;
+			return *this;
+		}
+
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& data_out;
+		m& valid;
+  	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const dmem_out_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.data_out, in_name + std::string(".data_out"));
+		sc_trace(tf, object.valid, in_name + std::string(".valid"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const dmem_out_t& object )
+	{
+		os << "(";
+		os <<  object.data_out;
+		os <<  object.valid;
+		os << ")";
+		return os;
+	}
+
+};
+#endif
 
 #endif  // ------------ hl5_datatypes.h include guard

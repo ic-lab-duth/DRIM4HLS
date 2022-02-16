@@ -5,7 +5,7 @@
 // Instantiates the top-level module (system) and
 // launches simulation (sc_start).
 //
-
+#include <mc_scverify.h>
 #include "system.hpp"
 
 TOP *top = NULL;
