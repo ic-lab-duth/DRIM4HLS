@@ -35,7 +35,10 @@ public:
 	sc_in < long int > CCS_INIT_S1(j_icount); 
 	sc_in < long int > CCS_INIT_S1(b_icount); 
 	sc_in < long int > CCS_INIT_S1(m_icount); 
-	sc_in < long int > CCS_INIT_S1(o_icount); 
+	sc_in < long int > CCS_INIT_S1(o_icount);
+
+	// Counter for correct branch predictions
+	sc_in < long int > pre_b_icount; 
 
 	sc_uint<XLEN> *imem;
 	sc_uint<XLEN> *dmem;
@@ -56,6 +59,7 @@ public:
 		, b_icount("b_icount")
 		, m_icount("m_icount")
 		, o_icount("o_icount")
+		, pre_b_icount("pre_b_icount")
 		, imem(imem)
 		, dmem(dmem)
 	{

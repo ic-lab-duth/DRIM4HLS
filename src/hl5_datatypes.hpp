@@ -20,10 +20,10 @@
 
 // Fetch
 // ------------ fe_in_t
-#ifndef fe_in_t_SC_WRAPPER_TYPE
-#define fe_in_t_SC_WRAPPER_TYPE 1
+#ifndef de_in_t_SC_WRAPPER_TYPE
+#define de_in_t_SC_WRAPPER_TYPE 1
 
-struct fe_in_t
+struct de_in_t
 {
 	//
 	// Member declarations.
@@ -38,7 +38,7 @@ struct fe_in_t
 	//
 	// Default constructor.
 	//
-	fe_in_t()
+	de_in_t()
 		{
 			jump    = "0";
 			branch  = "0";
@@ -49,7 +49,7 @@ struct fe_in_t
 	//
 	// Copy constructor.
 	//
-	fe_in_t( const fe_in_t& other )
+	de_in_t( const de_in_t& other )
 		{
 			jump = other.jump;
 			branch = other.branch;
@@ -60,7 +60,7 @@ struct fe_in_t
 	//
 	// Comparison operator.
 	//
-	inline bool operator == ( const fe_in_t& other )
+	inline bool operator == ( const de_in_t& other )
 		{
 			if ( !(jump == other.jump) )
 				return false;
@@ -76,7 +76,7 @@ struct fe_in_t
 	//
 	// Assignment operator from fe_in_t.
 	//
-	inline fe_in_t& operator = ( const fe_in_t& other )
+	inline de_in_t& operator = ( const de_in_t& other )
 		{
 			jump = other.jump;
 			branch = other.branch;
@@ -97,7 +97,7 @@ struct fe_in_t
   	//
 	// sc_trace function.
 	//
-	inline friend void sc_trace( sc_trace_file* tf, const fe_in_t& object, const std::string& in_name )
+	inline friend void sc_trace( sc_trace_file* tf, const de_in_t& object, const std::string& in_name )
 	{
 		sc_trace(tf, object.jump, in_name + std::string(".jump"));
 		sc_trace(tf, object.branch, in_name + std::string(".branch"));
@@ -108,7 +108,7 @@ struct fe_in_t
 	//
 	// stream operator.
 	//
-	inline friend ostream & operator << ( ostream & os, const fe_in_t& object )
+	inline friend ostream & operator << ( ostream & os, const de_in_t& object )
 	{
 
 		os << "(";
@@ -125,6 +125,95 @@ struct fe_in_t
 
 #endif
 // ------------ END fe_in_t
+
+// ------------ fe_out_t
+#ifndef fe_out_t_SC_WRAPPER_TYPE
+#define fe_out_t_SC_WRAPPER_TYPE 1
+
+struct fe_out_t
+{
+	//
+	// Member declarations.
+	//
+	sc_uint< PC_LEN > pc;
+	sc_uint< PC_LEN > next_pc;
+
+	static const int width = 2*PC_LEN;
+
+	//
+	// Default constructor.
+	//
+	fe_out_t()
+		{
+			pc = (sc_uint< PC_LEN >)0;
+			next_pc = (sc_uint< PC_LEN >)0;
+		}
+
+	//
+	// Copy constructor.
+	//
+	fe_out_t( const fe_out_t& other )
+		{
+			pc = other.pc;
+			next_pc = other.next_pc;
+		}
+
+	//
+	// Comparison operator.
+	//
+	inline bool operator == ( const fe_out_t& other )
+		{
+			if ( !(pc == other.pc) )
+				return false;
+			if ( !(next_pc == other.next_pc) )
+				return false;
+			return true;
+		}
+
+	//
+	// Assignment operator from fe_in_t.
+	//
+	inline fe_out_t& operator = ( const fe_out_t& other )
+		{
+			pc = other.pc;
+			next_pc = other.next_pc;
+			return *this;
+		}
+	
+	
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& pc; 
+		m& next_pc;	   
+  	}	
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const fe_out_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.pc, in_name + std::string(".pc"));
+		sc_trace(tf, object.next_pc, in_name + std::string(".next_pc"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const fe_out_t& object )
+	{
+
+		os << "(";
+		os <<  object.pc;
+		os <<  object.next_pc;
+		os << ")";
+
+		return os;
+	}
+
+};
+
+#endif
+// ------------ END fe_out_t
 
 
 // Decode
@@ -1011,6 +1100,99 @@ struct dmem_out_t
 		os << "(";
 		os <<  object.data_out;
 		os <<  object.valid;
+		os << ")";
+		return os;
+	}
+
+};
+#endif
+
+// ------------ dmem_out_t
+#ifndef fe_in_t_SC_WRAPPER_TYPE
+#define fe_in_t_SC_WRAPPER_TYPE 1
+
+struct fe_in_t
+{
+	//
+	// Member declarations.
+	//
+	bool			freeze;
+	bool 		    redirect;
+	sc_bv< PC_LEN > address;
+	
+	static const int width = 1 + 1 + PC_LEN;
+	//
+	// Default constructor.
+	//
+	fe_in_t()
+		{
+			freeze             = false;
+			redirect  		   = false;
+			address   		   = sc_bv< PC_LEN >(0);
+		}
+
+	//
+	// Copy constructor.
+	//
+	fe_in_t( const fe_in_t& other )
+		{
+			freeze    = other.freeze;
+			redirect  = other.redirect;
+			address   = other.address;
+		}
+
+	//
+	// Comparison operator.
+	//
+	inline bool operator == ( const fe_in_t& other )
+		{
+			if ( !(freeze == other.freeze) )
+				return false;
+			if ( !(redirect == other.redirect) )
+				return false;
+			if ( !(address == other.address) )
+				return false;	
+			return true;
+		}
+
+	//
+	// Assignment operator from stall_t.
+	//
+	inline fe_in_t& operator = ( const fe_in_t& other )
+		{
+			freeze				= other.freeze;
+			redirect			= other.redirect;
+			address	    		= other.address;
+
+			return *this;
+		}
+
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& freeze;
+		m& redirect;
+		m& address;
+  	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const fe_in_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.freeze, in_name + std::string(".freeze"));
+		sc_trace(tf, object.redirect, in_name + std::string(".redirect"));
+		sc_trace(tf, object.address, in_name + std::string(".address"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const fe_in_t& object )
+	{
+		os << "(";
+		os <<  object.freeze;
+		os <<  object.redirect;
+		os <<  object.address;
 		os << ")";
 		return os;
 	}

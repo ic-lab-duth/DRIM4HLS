@@ -106,6 +106,7 @@ EXE_RST:
                 csr[MHARTID_I] = 0x0; // Single thread (always 0)
                 csr[MINSTRET_I] = 0x0; // Retired instructions
                 csr[MCYCLE_I] = 0x0; // Cycle count (32-bits only for now)
+
 		wait();
 		wait();
 	}
@@ -115,7 +116,6 @@ EXE_BODY:
 		csr[MCYCLE_I]++;
 		// Get
 		input = din.Pop();
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "received from fetch " << input << endl);
 
 		// Compute
 		output.regwrite = input.regwrite;

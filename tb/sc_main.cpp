@@ -6,6 +6,7 @@
 // launches simulation (sc_start).
 //
 #include <mc_scverify.h>
+#include <mc_connections.h>
 #include "system.hpp"
 
 TOP *top = NULL;

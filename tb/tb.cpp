@@ -94,13 +94,14 @@ void tb::sink()
 	// double elapsed_main_time_ns = exec_main_end - exec_main_start;
 	//double elapsed_time_ns = exec_end - exec_start;
 
-	long icount_end, j_icount_end, b_icount_end, m_icount_end, o_icount_end;
+	long icount_end, j_icount_end, b_icount_end, m_icount_end, o_icount_end, pre_b_icount_end;
 
 	icount_end = icount.read();
 	j_icount_end = j_icount.read();
 	b_icount_end = b_icount.read();
 	m_icount_end = m_icount.read();
 	o_icount_end = o_icount.read();
+	pre_b_icount_end = pre_b_icount.read();
 
 	SC_REPORT_INFO(sc_object::name(), "Program complete.");
 
@@ -111,6 +112,7 @@ void tb::sink()
 	std::cout << "   BRANCH: " << b_icount_end << std::endl;
 	std::cout << "   MEM   : " << m_icount_end << std::endl;
 	std::cout << "   OTHER : " << o_icount_end << std::endl;
+	std::cout << "   CORRECT PREDICTIONS : " << pre_b_icount_end << std::endl;
 
 // 	// Verify correctness of program
 // 	int is_check1_passed = 0, is_check2_passed = 0, is_check_failed = 0, is_test_passed = 0;
@@ -164,6 +166,7 @@ void tb::sink()
 	report << "   BRANCH: " << b_icount_end << std::endl;
 	report << "   MEM   : " << m_icount_end << std::endl;
 	report << "   OTHER : " << o_icount_end << std::endl;
+	report << "   CORRECT PREDICTIONS : " << pre_b_icount_end << std::endl;
 
 	report.close();
 	

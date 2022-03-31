@@ -1,0 +1,121 @@
+/* Copyright 2017 Columbia University, SLD Group */
+
+//
+// fedec.h - Robert Margelli
+// fetch + decoding logic header file.
+//
+
+#ifndef __DEC__H
+#define __DEC__H
+
+#include <systemc.h>
+#include <bitset>
+#include <mc_connections.h>
+
+#include "defines.hpp"
+#include "globals.hpp"
+#include "hl5_datatypes.hpp"
+
+SC_MODULE(decode)
+{
+public:
+	// FlexChannel initiators
+	Connections::Out< de_out_t > dout;
+    Connections::Out< fe_in_t > fetch_dout;
+	Connections::Out< imem_in_t > imem_stall_out;
+
+	Connections::In< mem_out_t > feed_from_wb;
+	Connections::In< imem_out_t > imem_out;
+    Connections::In< fe_out_t > fetch_din;
+
+	// Forward
+	sc_in< reg_forward_t > fwd_exe;
+
+	// End of simulation signal.
+	sc_out < bool > program_end;
+
+	// Fetch enable signal.
+	sc_in < bool > fetch_en;
+
+
+	// Clock and reset signals
+	sc_in_clk clk;
+	sc_in< bool > rst;
+
+	// Instruction counters
+	sc_out < long int > icount; 
+	sc_out < long int > j_icount; 
+	sc_out < long int > b_icount; 
+	sc_out < long int > m_icount; 
+	sc_out < long int > o_icount;
+	sc_out < long int > pre_b_icount; 
+
+	// Thread prototype
+	void decode_th(void);
+
+	// Function prototypes.
+	sc_bv<PC_LEN> sign_extend_jump(sc_bv<21> imm);
+	sc_bv<PC_LEN> sign_extend_branch(sc_bv<13> imm);
+
+	SC_HAS_PROCESS(decode);
+	decode(sc_module_name name)
+    	: clk("clk")
+		, rst("rst")
+		, dout("dout")
+        , fetch_en("fetch_en")
+		, feed_from_wb("feed_from_wb")
+        , fetch_din("fetch_din")
+        , fetch_dout("fetch_dout")
+        , program_end("program_end")
+		, fwd_exe("fwd_exe")
+        , icount("icount")
+		, j_icount("j_icount")
+		, b_icount("b_icount")
+		, m_icount("m_icount")
+		, o_icount("o_icount")
+		, pre_b_icount("pre_b_icount")
+		, imem_out("imem_out")
+		, imem_stall_out("imem_stall_out")
+	{
+		SC_CTHREAD(decode_th, clk.pos());
+		reset_signal_is(rst, false);
+
+	}
+
+	// Member variables (DECODE)
+	de_in_t           self_feed;    	// Contains branch and jump data		 
+	imem_out_t		  imem_din;			// Contains data from instruction memory
+	imem_in_t		  imem_stall_din;	// Contains data for instruction memory about stalld
+	mem_out_t   feedinput;				// Contains data from writeback stage
+	de_out_t    output;					// Contains data for the execute stage
+    fe_out_t    input;					// Contains data from the fetch stage
+    fe_in_t     fetch_out;				// Contains data for the fetch stage about processor stalls
+	
+	sc_bv<INSN_LEN>   insn;         	// Contains full instruction fetched from IMEM. Used in decoding.
+	unsigned int      imem_data;		// Contains instruction data
+
+	sc_uint< PC_LEN > pc;				// Contains PC for the current instruction that is decoded
+	sc_uint< PC_LEN > next_pc;			// Contains PC for the next instruction that will be decoded
+
+    fe_out_t buffer_fe_out[2];			// Buffer for the data coming from the fetch stage
+    
+    // Trap signals. TODO: not used. Left for future implementations.
+	sc_signal< bool > trap; //sc_out
+	sc_signal< sc_uint<LOG2_NUM_CAUSES> > trap_cause; //sc_out
+	// NB. x0 is included in this regfile so it is not a real hardcoded 0
+	// constant. The writeback section of fedec has a guard fro writes on
+	// x0. For double protection, some instructions that want to write into
+	// x0 will have their regwrite signal forced to false.
+	sc_bv<XLEN> regfile[REG_NUM];
+	// Keeps track of in-flight instructions that are going to overwrite a
+	// register. Implements a primitive stall mechanism for RAW hazards.
+	sc_uint<TAG_WIDTH>  sentinel[REG_NUM];
+	sc_uint<TAG_WIDTH> tag;
+	// Stalls processor and sends a nop operation to the execute stage
+	bool freeze;
+	// Flushes current instruction in order to sychronize processor with a
+	// change of direction in the execution
+	bool flush;
+};
+
+#endif

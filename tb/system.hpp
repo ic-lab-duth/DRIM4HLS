@@ -43,6 +43,7 @@ public:
 	sc_signal < long int > b_icount; 
 	sc_signal < long int > m_icount; 
 	sc_signal < long int > o_icount;
+	sc_signal < long int > pre_b_icount;
 
 	// Cache modeled as arrays
 	sc_uint<XLEN> imem[ICACHE_SIZE];
@@ -66,8 +67,9 @@ public:
 	imem_interface *m_imem;
 	dmem_interface *m_dmem;
 
-	Connections::Combinational< imem_out_t > imem2fe_ch; 
+	Connections::Combinational< imem_out_t > imem2de_ch; 
 	Connections::Combinational< imem_in_t > fe2imem_ch;
+	Connections::Combinational< imem_in_t > de2imem_ch;
 
 	Connections::Combinational< dmem_out_t > dmem2wb_ch;
 	Connections::Combinational< dmem_in_t > exe2dmem_ch; 
@@ -98,9 +100,11 @@ public:
 		m_dut->b_icount(b_icount);
 		m_dut->m_icount(m_icount);
 		m_dut->o_icount(o_icount);
+		m_dut->pre_b_icount(pre_b_icount);
 
-		m_dut->imem2fe_data(imem2fe_ch);
+		m_dut->imem2de_data(imem2de_ch);
 		m_dut->fe2imem_data(fe2imem_ch);
+		m_dut->de2imem_data(de2imem_ch);
 		m_dut->dmem2wb_data(dmem2wb_ch);
 		m_dut->exe2dmem_data(exe2dmem_ch);
 		m_dut->wb2dmem_data(wb2dmem_ch);
@@ -124,11 +128,13 @@ public:
 		m_tb->b_icount(b_icount);
 		m_tb->m_icount(m_icount);
 		m_tb->o_icount(o_icount);
+		m_tb->pre_b_icount(pre_b_icount);
 
 		m_imem->clk(clk);
 		m_imem->rst(cpu_rst);
-		m_imem->imem_out(imem2fe_ch);
+		m_imem->imem_out(imem2de_ch);
 		m_imem->imem_in(fe2imem_ch);
+		m_imem->imem_stall_in(de2imem_ch);
 
 		m_dmem->clk(clk);
 		m_dmem->rst(cpu_rst);

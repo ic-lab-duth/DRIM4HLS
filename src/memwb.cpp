@@ -39,14 +39,8 @@ MEMWB_RST:
 		dmem_dout.write_en = false;
 		dmem_dout.data_addr = (sc_bv<XLEN>)0;
 		dmem_dout.data_in = (sc_bv<XLEN>)0;
-        wait();
-		do {wait();} while(!fetch_en); // Synchronize with fetch stage at startup.
 
-		dout.Push(output);
-		dmem_in.Push(dmem_dout);
-		wait();
-		dout.Push(output);
-		dmem_in.Push(dmem_dout);
+		do {wait();} while(!fetch_en); // Synchronize with fetch stage at startup.
 
 	}
 
@@ -56,27 +50,13 @@ MEMWB_BODY:
 		// Get
 		input = temp_input;
 		temp_input = din.Pop();
-		//buffer[0] = din.Pop();
-		dmem_din = dmem_out.Pop();
-		//input = buffer[1];
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " receive from exe " << buffer[0] << endl);
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " input= " << buffer[1] << endl);
-
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " buffer[0] ld= " << buffer[0].ld << endl);
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " buffer[0] st= " << buffer[0].st << endl);
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " buffer[0] regwrite= " << buffer[0].regwrite << endl);
-
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " buffer[1] ld= " << input.ld << endl);
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " buffer[1] st= " << input.st << endl);
-		// DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " buffer[1] regwrite= " << input.regwrite << endl);
 		
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " input ld= " << input.ld << endl);
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " input st= " << input.st << endl);
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " input regwrite= " << input.regwrite << endl);
+		sc_uint<XLEN> dmem_data;
+		
+		if (dmem_out.PopNB(dmem_din)) {
+			dmem_data = dmem_din.data_out;
+		}
 
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " temp_input ld= " << temp_input.ld << endl);
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " temp_input st= " << temp_input.st << endl);
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " temp_input regwrite= " << temp_input.regwrite << endl);
 		// Compute
 		// *** Memory access.
 
@@ -86,20 +66,16 @@ MEMWB_BODY:
 		unsigned char byte_index = (unsigned char) ((aligned_address & 0x3) << 3);
 		unsigned char halfword_index = (unsigned char) ((aligned_address & 0x2) << 3);
 
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "aligned_address= "<< aligned_address <<  endl);
 		aligned_address = aligned_address >> 2;
 		sc_uint<BYTE> db;
 		sc_uint<2 * BYTE> dh;
 		sc_uint<XLEN> dw;
-		sc_uint<XLEN> dmem_data;
 
 		dmem_dout.valid = false;
 		dmem_dout.read_en = false;
 		dmem_dout.write_en = false;
 		dmem_dout.data_addr = aligned_address;
 
-		dmem_data = dmem_din.data_out;
-		//wait();
 		#ifndef __SYNTHESIS__
 			if (sc_uint<3>(input.ld) != NO_LOAD || sc_uint<2>(input.st) != NO_STORE) {
 				if (input.mem_datain.to_uint() == 0x11111111 ||
@@ -116,16 +92,6 @@ MEMWB_BODY:
 		#endif
 
 		if (sc_uint<3>(input.ld) != NO_LOAD) {    // a load is requested
-			
-			//dmem_dout.valid = true;
-			//dmem_dout.read_en = true;
-			//dmem_in.Push(dmem_dout);
-
-			//dmem_din = dmem_out.Pop();
-			
-			//dmem_data = dmem_din.data_out;
-			//dmem_dout.valid = false;
-			//dmem_dout.read_en = false;
 
 			switch(sc_uint<3>(input.ld)) {         // LOAD
 			case LB_LOAD:
@@ -192,14 +158,14 @@ MEMWB_BODY:
 		output.regfile_address  = input.dest_reg;
 		output.regfile_data     = (input.memtoreg == "1")? mem_dout : input.alu_res;
 		output.tag              = input.tag;
+		
 		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regwrite=" << output.regwrite<< endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regfile_address=" << output.regfile_address<< endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regfile_data=" << output.regfile_data << endl);
 		// Put
-		// if(sc_uint<3>(input.ld) == NO_LOAD && sc_uint<3>(input.st) == NO_STORE) {
-		// 	wait();
-		// }
-		//buffer[1] = buffer[0];
 		dmem_in.Push(dmem_dout);
 		dout.Push(output);
+		DPRINT(endl);
 	}
 }
 

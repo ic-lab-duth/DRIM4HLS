@@ -10,26 +10,39 @@
 
 #include "imem_interface.hpp"
 
+#ifndef NDEBUG
+  #include <iostream>
+  #define DPRINT(msg) std::cout << msg;
+#else
+  #define DPRINT(msg)
+#endif
+
 // Source thread
 void imem_interface::fetch_instr()
 {	
-	//instr_data.write(imem[0]);
 	imem_in.Reset();
 	imem_out.Reset();
+	imem_stall_in.Reset();
+
 	while (true)
 	{	imem_din = imem_in.Pop();
-		//if(valid.read()) {
-		if(imem_din.valid) {
-			//unsigned int addr = instr_addr.read();
-			unsigned int addr = imem_din.instr_addr;
-			//instr_data.write(imem[addr]);
 
+		unsigned int addr;
+		
+		if (imem_stall_in.PopNB(stall_din)) {
+			// Read from instruction memory
+			if(stall_din.valid) {
+				addr = imem_din.instr_addr;
+				imem_dout.instr_data = imem[addr];
+			}
+		}else {
+			addr = imem_din.instr_addr;
 			imem_dout.instr_data = imem[addr];
-			imem_out.Push(imem_dout);
-			cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "index= " << addr << endl;
-			cout << "@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "data= " << imem[addr] << endl;
 		}
 
+		imem_out.Push(imem_dout);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "instr_data= " << imem_dout.instr_data << endl);
+		DPRINT(endl);
 		wait();
 	}
 	
