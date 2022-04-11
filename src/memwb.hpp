@@ -23,6 +23,8 @@ SC_MODULE(memwb)
 	Connections::Out< dmem_in_t > dmem_in;
 	Connections::In< dmem_out_t > dmem_out;
 
+	Connections::In< stall_t > dmem_stall;
+
 	// Clock and reset signals
 	sc_in_clk clk;
 	sc_in<bool> rst;
@@ -43,6 +45,7 @@ SC_MODULE(memwb)
 	memwb(sc_module_name name)
 		: din("din")
 		, dout("dout")
+		, dmem_stall("dmem_stall")
 		, clk("clk")
 		, rst("rst")
 		, fetch_en("fetch_en")
@@ -53,6 +56,8 @@ SC_MODULE(memwb)
 
 	// Member variables
 	exe_out_t input;
+	exe_out_t input1;
+	exe_out_t input2;
 	exe_out_t temp_input;
 	//exe_out_t buffer[2];
 	
@@ -61,6 +66,11 @@ SC_MODULE(memwb)
 
 	dmem_in_t		  dmem_dout;
 	dmem_out_t		  dmem_din;
+
+	stall_t dmem_stall_d;
+	bool dmem_freeze;
+	bool dmem_data_valid;
+
 };
 
 

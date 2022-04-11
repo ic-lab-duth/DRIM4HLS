@@ -50,6 +50,9 @@ DECODE_RST:
         fetch_dout.Reset();
 		imem_stall_out.Reset();
 		imem_out.Reset();
+		dmem_stall.Reset();
+		imem_stall.Reset();
+		fwd_exe.Reset();
 
 		// Init. sentinel flags to zero.
 		for(int i = 0; i < REG_NUM; i++) {
@@ -69,11 +72,13 @@ DECODE_RST:
 
 		freeze = false;
 		flush = false;
-		tag = 0;
 		
         fetch_out.freeze = false;
 
 		imem_stall_din.valid = true;
+
+		forward_success_rs1 = false;
+		forward_success_rs2 = false;
 
 		do {wait();} while(!fetch_en);
 	}
@@ -83,7 +88,19 @@ DECODE_BODY:
 		// Retrieve data from instruction memory and fetch stage.
 		// If processor stalls then just clear the channels from new data.
 
-		if(!freeze || flush) {
+		if (dmem_stall.PopNB(dmem_stall_d)) {
+			dmem_freeze = dmem_stall_d.stall;
+		}else {
+			dmem_freeze = false;
+		}
+
+		if (imem_stall.PopNB(imem_stall_d) && (!freeze || flush)) {
+			imem_freeze = imem_stall_d.stall;
+		}else {
+			imem_freeze = false;
+		}
+		
+		if((!freeze || flush) && !dmem_freeze && !imem_freeze ) {
             tag = (tag + 1) % (1 << (TAG_WIDTH - 1));
 
 			buffer_fe_out[1] = buffer_fe_out[0];
@@ -93,10 +110,13 @@ DECODE_BODY:
 			
 			if (imem_out.PopNB(imem_din)) {
 				// Get new data
-				if(!freeze) {
+				if(!freeze && !imem_freeze) {
 					imem_data = imem_din.instr_data;
 
 					pc = buffer_fe_out[1].pc;
+
+					forward_success_rs1 = false;
+					forward_success_rs2 = false;
 				}		
 			}else {
 				imem_data = 0;
@@ -116,7 +136,7 @@ DECODE_BODY:
 		output.pc = pc;
 		
 		// Increment some instruction counters
-		sc_uint<OPCODE_SIZE> opcode = sc_uint<OPCODE_SIZE>(sc_bv<OPCODE_SIZE>(insn.range(6, 2)));
+		opcode = sc_uint<OPCODE_SIZE>(sc_bv<OPCODE_SIZE>(insn.range(6, 2)));
 		if (!freeze) {
 
 			if (opcode == OPC_LW || opcode == OPC_SW)
@@ -148,26 +168,29 @@ DECODE_BODY:
 			program_end.write(true);
 		}
 
+		sc_uint<REG_ADDR> rs1_addr(sc_bv<REG_ADDR>(insn.range(19, 15)));
+		sc_uint<REG_ADDR> rs2_addr(sc_bv<REG_ADDR>(insn.range(24, 20)));
+
 		if (feed_from_wb.PopNB(feedinput)) {
 			// *** Register file write.
 			if (feedinput.regwrite == "1" && feedinput.regfile_address != "00000") { // Actual writeback.
 				regfile[sc_uint<REG_ADDR>(feedinput.regfile_address)] = feedinput.regfile_data; // Overwrite register.
-							
-				if (feedinput.tag == sentinel[sc_uint<REG_ADDR>(feedinput.regfile_address)])
-					sentinel[sc_uint<REG_ADDR>(feedinput.regfile_address)] = SENTINEL_INIT; // Reset sentinel flag.
+	
+				if (( feedinput.pc == sentinel[sc_uint<REG_ADDR>(feedinput.regfile_address)].range(32, 1)) && (sentinel[sc_uint<REG_ADDR>(feedinput.regfile_address)][0] == "1")) {
+					sentinel[sc_uint<REG_ADDR>(feedinput.regfile_address)].range(0, 0) = "0";
+				}
+
 			}
+			
 		}
 
-		// *** Register file read.
-		bool forward_success_rs1 = false;
-		bool forward_success_rs2 = false;
-		sc_uint<REG_ADDR> rs1_addr(sc_bv<REG_ADDR>(insn.range(19, 15)));
-		sc_uint<REG_ADDR> rs2_addr(sc_bv<REG_ADDR>(insn.range(24, 20)));
-		bool rs1_raw = false;
-		bool rs2_raw = false;
-		reg_forward_t fwd = fwd_exe.read();
+		//reg_forward_t fwd = fwd_exe.read();
+		if (fwd_exe.PopNB(temp_fwd)) {
+			fwd = temp_fwd;
+		}
+
 #ifdef FWD_ENABLE
-		if (!fwd.ldst && fwd.tag == sentinel[rs1_addr] && fwd.tag != SENTINEL_INIT) {
+		if (!fwd.ldst && fwd.pc == sentinel[rs1_addr].range(32, 1) && sentinel[rs1_addr][0] == "1") {
 			forward_success_rs1 = true;
 			output.rs1 = fwd.regfile_data;
 
@@ -182,10 +205,10 @@ DECODE_BODY:
 			#ifndef __SYNTHESIS__
 				debug_dout_t.rs1 = regfile[rs1_addr];
 			#endif
-			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "rs1 forward data of x" << std::dec << rs1_addr << std::hex << "= " << regfile[rs1_addr] << endl);
+			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "rs1 regifle data of x" << std::dec << rs1_addr << std::hex << "= " << regfile[rs1_addr] << endl);
 #ifdef FWD_ENABLE
 		}
-		if (!fwd.ldst && fwd.tag == sentinel[rs2_addr] && fwd.tag != SENTINEL_INIT) {
+		if (!fwd.ldst && fwd.pc == sentinel[rs2_addr] && sentinel[rs2_addr][0] == "1") {
 			forward_success_rs2 = true;
 			output.rs2 = fwd.regfile_data;
 
@@ -200,7 +223,7 @@ DECODE_BODY:
 			#ifndef __SYNTHESIS__
 				debug_dout_t.rs2 = regfile[rs2_addr];
 			#endif
-			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "rs2 forward data of x" << std::dec << rs2_addr << std::hex << "= " << regfile[rs2_addr] << endl);
+			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "rs2 regifle data of x" << std::dec << rs2_addr << std::hex << "= " << regfile[rs2_addr] << endl);
 #ifdef FWD_ENABLE
 		}
 #endif
@@ -237,33 +260,44 @@ DECODE_BODY:
 		self_feed.branch = "0";
 		if (insn.range(6, 2) == OPC_BEQ) {  // BEQ,BNE, BLT, BGE, BLTU, BGEU
 			switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
-			case FUNCT3_BEQ:
-				if (output.rs1 == output.rs2)
-					self_feed.branch = "1";  // BEQ taken.
-				break;
-			case FUNCT3_BNE:
-				if (output.rs1 != output.rs2)
-					self_feed.branch = "1";  // BNE taken.
-				break;
-			case FUNCT3_BLT:
-				if ((sc_int<XLEN>)output.rs1 < (sc_int<XLEN>)output.rs2)
-					self_feed.branch = "1";  // BLT taken.
-				break;
-			case FUNCT3_BGE:
-				if ((sc_int<XLEN>)output.rs1 >= (sc_int<XLEN>)output.rs2)
-					self_feed.branch = "1";  // BGE taken.
-				break;
-			case FUNCT3_BLTU:
-				if ((sc_uint<XLEN>)output.rs1 < (sc_uint<XLEN>)output.rs2)
-					self_feed.branch = "1";  // BLTU taken.
-				break;
-			case FUNCT3_BGEU:
-				if ((sc_uint<XLEN>)output.rs1 >= (sc_uint<XLEN>)output.rs2)
-					self_feed.branch = "1";  // BGEU taken.
-				break;
-			default:
-				self_feed.branch = "0";  // default to not taken.
-				break;
+				case FUNCT3_BEQ:
+					if (output.rs1 == output.rs2)
+						self_feed.branch = "1";  // BEQ taken.
+						DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "FUNCT3_BEQ" << endl);
+					break;
+				case FUNCT3_BNE:
+					if (output.rs1 != output.rs2) {
+						self_feed.branch = "1";  // BNE taken.
+						DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "FUNCT3_BNE" << endl);
+					}
+					break;
+				case FUNCT3_BLT:
+					if ((sc_int<XLEN>)output.rs1 < (sc_int<XLEN>)output.rs2) {
+						self_feed.branch = "1";  // BLT taken.
+						DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "FUNCT3_BLT" << endl);
+					}
+					break;
+				case FUNCT3_BGE:
+					if ((sc_int<XLEN>)output.rs1 >= (sc_int<XLEN>)output.rs2) {
+						self_feed.branch = "1";  // BGE taken.
+						DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "FUNCT3_BGE" << endl);
+					}
+					break;
+				case FUNCT3_BLTU:
+					if ((sc_uint<XLEN>)output.rs1 < (sc_uint<XLEN>)output.rs2) {
+						self_feed.branch = "1";  // BLTU taken.
+						DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "FUNCT3_BLTU" << endl);
+					}
+					break;
+				case FUNCT3_BGEU:
+					if ((sc_uint<XLEN>)output.rs1 >= (sc_uint<XLEN>)output.rs2) {
+						self_feed.branch = "1";  // BGEU taken.
+						DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "FUNCT3_BGEU" << endl);
+					}
+					break;
+				default:
+					self_feed.branch = "0";  // default to not taken.
+					break;
 			}
 		}
 		// -- All data for feedback path to fetch is ready now. Do put(): in this version it saved data in self_feed.
@@ -353,7 +387,6 @@ DECODE_BODY:
 			output.memtoreg = "0";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
-			rs1_raw = true;
 
 			#ifndef __SYNTHESIS__
 				debug_dout_t.alu_op = "ALUOP_JALR";
@@ -374,8 +407,6 @@ DECODE_BODY:
 			output.memtoreg = "0";			
 			trap = "0";
 			trap_cause = NULL_CAUSE;
-			rs1_raw = true;
-			rs2_raw = true;
 
 			#ifndef __SYNTHESIS__
 				debug_dout_t.alu_op = "ALUOP_BEQ";
@@ -440,7 +471,6 @@ DECODE_BODY:
 			output.memtoreg = "1";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
-			rs1_raw = true; // Base address
 			
 			#ifndef __SYNTHESIS__
 				debug_dout_t.alu_op = "ALUOP_ADD";
@@ -486,8 +516,6 @@ DECODE_BODY:
 			output.memtoreg = "0";
 			trap = "0";
 			trap_cause = NULL_CAUSE;
-			rs1_raw = true; // Base address
-			rs2_raw = true; // Input Data
 
 			#ifndef __SYNTHESIS__
 				debug_dout_t.alu_op = "ALUOP_ADD";
@@ -592,7 +620,6 @@ DECODE_BODY:
 			output.memtoreg = "0";		
 			trap = "0";
 			trap_cause = NULL_CAUSE;
-			rs1_raw = true;
 
 			#ifndef __SYNTHESIS__
 				debug_dout_t.regwrite = "REGWRITE YES";
@@ -793,8 +820,6 @@ DECODE_BODY:
 				SC_REPORT_ERROR(sc_object::name(), "Unimplemented ALUOP instruction");
 				break;
 			}
-			rs1_raw = true;
-			rs2_raw = true;
 			break;
 
 #ifdef CSR_LOGIC
@@ -805,7 +830,6 @@ DECODE_BODY:
 			output.st       = NO_STORE;
 			output.memtoreg = "0";
 			output.regwrite = "1";		
-			rs1_raw = true;
 
 			#ifndef __SYNTHESIS__
 				debug_dout_t.alu_op = "ALUOP_NULL";
@@ -818,7 +842,6 @@ DECODE_BODY:
 			switch(sc_uint<3>(sc_bv<3>(insn.range(14, 12)))) {
 			case FUNCT3_EBREAK: // EBREAK, ECALL
 				output.regwrite = "0";
-				rs1_raw = false;
 				trap = "1";
 				output.alu_op = (sc_bv<ALUOP_SIZE>)ALUOP_CSRRWI;
 				output.imm_u.range(19, 8) = (sc_bv<CSR_ADDR>)MCAUSE_A;    // force the CSR address to MCAUSE's
@@ -942,40 +965,47 @@ DECODE_BODY:
 		} // --- END of OPCODE switch
 		// *** END of control word generation.
 
-		// *** Stall and flush mechanism
-		if ((sentinel[rs1_addr] != SENTINEL_INIT && rs1_raw && !forward_success_rs1) || // If RAW on RS1
-		    (sentinel[rs2_addr] != SENTINEL_INIT && rs2_raw && !forward_success_rs2)) {   // If RAW on RS2
+		output.stall = false;
+		
+		if ((sentinel[rs1_addr][0] == "1" && !forward_success_rs1) || // If RAW on RS1
+			(sentinel[rs2_addr][0] == "1" && !forward_success_rs2)) {			
 			freeze = true;
-            fetch_out.freeze = true;
+			fetch_out.freeze = true;
 			imem_stall_din.valid = false;
-        }else if (self_feed.jump == "1" && next_pc != self_feed.jump_address) {
-            freeze = true;
-            fetch_out.freeze = false;
+			
+		}else if (self_feed.jump == "1" && next_pc != self_feed.jump_address) {
+			freeze = true;
+			fetch_out.freeze = false;
 			flush = true;
-            fetch_out.address = self_feed.jump_address;
+			fetch_out.address = self_feed.jump_address;
 			fetch_out.redirect = true;
 		}else if (self_feed.branch == "1" && next_pc != self_feed.branch_address) {
-            freeze = true;
-            fetch_out.freeze = false;
+			freeze = true;
+			fetch_out.freeze = false;
 			flush = true;
-            fetch_out.address = self_feed.branch_address;
+			fetch_out.address = self_feed.branch_address;
 			fetch_out.redirect = true;
 		}
 
-		if (!freeze && output.regwrite == "1" && output.dest_reg != "00000")
-			sentinel[sc_uint<REG_ADDR>(output.dest_reg)] = tag;   // Set corresponding sentinel flag.
+		if (!freeze && output.regwrite == "1" && output.dest_reg != "00000" && !imem_freeze && !dmem_freeze) {
+			sentinel[sc_uint<REG_ADDR>(output.dest_reg)].range(32, 1) = (sc_bv< XLEN >)pc;   // Set corresponding sentinel flag.
+			sentinel[sc_uint<REG_ADDR>(output.dest_reg)].range(0, 0) = "1";
 		
-		if (!freeze)
-			output.tag = tag;
-		else
-			output.tag = SENTINEL_INIT;
+			if (sc_uint<REG_ADDR>(output.dest_reg) == rs1_addr) {
+				forward_success_rs1 = true;
+			}else if (sc_uint<REG_ADDR>(output.dest_reg) == rs2_addr) {
+				forward_success_rs2 = true;
+			}
+		}
 		
 		// *** Transform instruction into nop when freeze is active
-		if (freeze || insn == "0") {
+		if (freeze || insn == "0" || imem_freeze || dmem_freeze) {
 			// Bubble.
 			output.regwrite     = "0";
 			output.ld           = NO_LOAD;
 			output.st           = NO_STORE;		
+			output.alu_op 		=  (sc_bv<ALUOP_SIZE>)ALUOP_NULL;
+			output.stall = true;
 
 			#ifndef __SYNTHESIS__
 				debug_dout_t.regwrite = "REGWRITE NO";
@@ -987,6 +1017,7 @@ DECODE_BODY:
 		#ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "insn=" << insn << endl);
 			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "freeze= " << freeze << endl);
+			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "flush= " << flush << endl);
 			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << debug_dout_t.pc << endl);
 			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regwrite= " << debug_dout_t.regwrite << endl);
 			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "memtoreg= " << debug_dout_t.memtoreg << endl);
@@ -1017,6 +1048,7 @@ DECODE_BODY:
         fetch_dout.Push(fetch_out);
 		dout.Push(output);
 		imem_stall_out.Push(imem_stall_din);
+		DPRINT(endl);
 		wait();
 
 	} // *** ENDOF while(true)

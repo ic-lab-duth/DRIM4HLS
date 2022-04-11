@@ -24,13 +24,21 @@ public:
 	// Instruction memory ports
 	Connections::Out< imem_out_t > imem_out; 
 	Connections::In< imem_in_t > imem_in;
-	Connections::In< imem_in_t > imem_stall_in;
+	Connections::In< imem_in_t > stall_in;
+	Connections::In< stall_t > dmem_stall_in;
+
+	Connections::Out< stall_t > stall_fe;
+	Connections::Out< stall_t > stall_de; 
 
 	sc_uint<XLEN> *imem;
 
 	imem_out_t imem_dout;
 	imem_in_t imem_din;
 	imem_in_t stall_din;
+	stall_t dmem_stall_din;
+
+	stall_t stall_fe_d;
+	stall_t stall_de_d;
 	
 	void fetch_instr();
 
@@ -40,12 +48,15 @@ public:
 		, rst("rst")
 		, imem_out("imem_out")
 		, imem_in("imem_in")
-		, imem_stall_in("imem_stall_in")
+		, stall_in("stall_in")
 		, imem(imem)
 	{
 		SC_CTHREAD(fetch_instr, clk.pos());
 		reset_signal_is(rst, 0);
 	}
+
+	bool dmem_stall;
+	bool valid;
 
 };
 

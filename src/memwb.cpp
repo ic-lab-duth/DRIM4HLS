@@ -28,6 +28,9 @@ MEMWB_RST:
 		dmem_in.Reset();
 		dmem_out.Reset();
 
+		dmem_stall.Reset();
+		//imem_stall.Reset();
+
 		// Write dummy data to decode feedback.
 		output.regfile_address = "00000";
 		output.regfile_data    = (sc_bv<XLEN>)0;
@@ -48,13 +51,28 @@ MEMWB_BODY:
 	while(true) {
 
 		// Get
-		input = temp_input;
-		temp_input = din.Pop();
+		if(!dmem_freeze) {
+			input = input2;
+			input2 = din.Pop();
+		}else {din.Pop();}
 		
 		sc_uint<XLEN> dmem_data;
 		
 		if (dmem_out.PopNB(dmem_din)) {
 			dmem_data = dmem_din.data_out;
+			dmem_data_valid = dmem_din.valid ;
+		}
+
+		if (dmem_stall.PopNB(dmem_stall_d)) {
+			dmem_freeze = dmem_stall_d.stall;
+		}else {
+			dmem_freeze = false;
+		}
+
+		if (dmem_data_valid && sc_uint<3>(input.ld) == NO_LOAD && dmem_freeze) {
+		 	input = input2;
+		 	input2.ld = NO_LOAD;
+			input2.regwrite = "0";
 		}
 
 		// Compute
@@ -154,17 +172,24 @@ MEMWB_BODY:
 		// *** END of memory access.
 
 		/* Writeback */
-		output.regwrite         = input.regwrite;
+		output.regwrite         = (dmem_freeze)? "0" : input.regwrite;
 		output.regfile_address  = input.dest_reg;
 		output.regfile_data     = (input.memtoreg == "1")? mem_dout : input.alu_res;
 		output.tag              = input.tag;
+		output.pc               = input.pc;
 		
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regwrite=" << output.regwrite<< endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "dmem_freeze=" << dmem_freeze << endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "input.regwrite=" << input.regwrite << endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regwrite=" << output.regwrite << endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "mem_dout=" << mem_dout << endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "input.alu_res=" << input.alu_res << endl);
 		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regfile_address=" << output.regfile_address<< endl);
 		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regfile_data=" << output.regfile_data << endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "input.memtoreg=" << input.memtoreg << endl);
 		// Put
 		dmem_in.Push(dmem_dout);
 		dout.Push(output);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "pushed" << endl);
 		DPRINT(endl);
 	}
 }

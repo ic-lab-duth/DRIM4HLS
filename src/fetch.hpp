@@ -21,6 +21,8 @@ SC_MODULE(fetch)
 public:
 	// Channel ports
 	Connections::In< fe_in_t > fetch_din;
+	Connections::In< stall_t > dmem_stall;
+	Connections::In< stall_t > imem_stall;
 	Connections::Out< imem_in_t > imem_din;
 	Connections::Out< fe_out_t > dout;
 
@@ -44,6 +46,7 @@ public:
 	SC_HAS_PROCESS(fetch);
 	fetch(sc_module_name name)
 		: dout("dout")
+		, dmem_stall("dmem_stall")
 		, fetch_en("fetch_en")
 		, entry_point("entry_point")
 		, clk("clk")
@@ -62,8 +65,16 @@ public:
 	imem_in_t		  imem_in;		// Contains data for fetching from the instruction memory
 	fe_out_t		  fe_out;		// Contains data for the decode stage
 	fe_in_t			  fetch_in;		// Contains data from the decode stage used in incrementing the PC
+	stall_t			  dmem_stall_d;
+	stall_t			  imem_stall_d;
 
-	int counter;
+	bool redirect;
+	sc_uint<PC_LEN>   redirect_addr;
+
+	bool dmem_freeze;
+	bool imem_freeze;
+
+	bool freeze;
 };
 
 #endif

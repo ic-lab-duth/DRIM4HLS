@@ -23,6 +23,7 @@
 #define DCACHE_SIZE 51200
 
 #define TAG_WIDTH 4
+#define SENTINEL_INIT (1 << (TAG_WIDTH - 1))
 #define FWD_ENABLE
 
 // Dbg directives.

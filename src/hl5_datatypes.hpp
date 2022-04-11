@@ -238,8 +238,9 @@ struct de_out_t
 	sc_bv< PC_LEN > pc;
 	sc_bv< XLEN-12 > imm_u;
 	sc_uint< TAG_WIDTH > tag;
+	bool stall;
 
-	static const int width = 1 + 1 + 3 + 2 + ALUOP_SIZE + ALUSRC_SIZE + 3*XLEN - 12 + REG_ADDR + PC_LEN + TAG_WIDTH;
+	static const int width = 1 + 1 + 3 + 2 + ALUOP_SIZE + ALUSRC_SIZE + 3*XLEN - 12 + REG_ADDR + PC_LEN + TAG_WIDTH + 1;
 
 	//
 	// Default constructor.
@@ -258,6 +259,7 @@ struct de_out_t
 			pc          = (sc_bv< PC_LEN >)0;
 			imm_u       = (sc_bv< XLEN-12 >)0;
 			tag         = (sc_uint< TAG_WIDTH >)0;
+			stall		= false;
 		}
 
 	//
@@ -277,6 +279,7 @@ struct de_out_t
 			pc = other.pc;
 			imm_u = other.imm_u;
 			tag = other.tag;
+			stall = other.stall;
 		}
 
 	//
@@ -308,6 +311,8 @@ struct de_out_t
 				return false;
 			if ( !(tag == other.tag) )
 				return false;
+			if ( !(stall == other.stall) )
+				return false;
 			return true;
 		}
 
@@ -328,6 +333,7 @@ struct de_out_t
 			pc = other.pc;
 			imm_u = other.imm_u;
 			tag = other.tag;
+			stall = other.stall;
 			return *this;
 		}
 	
@@ -345,6 +351,7 @@ struct de_out_t
 		m& pc;
 		m& imm_u;
 		m& tag;
+		m& stall;
 
   	}
   	
@@ -365,6 +372,7 @@ struct de_out_t
 		sc_trace(tf, object.pc, in_name + std::string(".pc"));
 		sc_trace(tf, object.imm_u, in_name + std::string(".imm_u"));
 		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+		sc_trace(tf, object.stall, in_name + std::string(".stall"));
 	}
 	
 	//
@@ -385,6 +393,7 @@ struct de_out_t
 		os << "," <<  object.pc;
 		os << "," <<  object.imm_u;
 		os << "," <<  object.tag;
+		os << "," <<  object.stall;
 		os << ")";
 
 		return os;
@@ -414,8 +423,9 @@ struct exe_out_t        // TODO: fix all sizes
 	sc_bv< DATA_SIZE > mem_datain;
 	sc_bv< REG_ADDR > dest_reg;
 	sc_uint< TAG_WIDTH > tag;
+	sc_bv< PC_LEN > pc;
 
-	static const int width = 3 + 2 + 1 + 1 + XLEN + DATA_SIZE + REG_ADDR + TAG_WIDTH;
+	static const int width = 3 + 2 + 1 + 1 + XLEN + DATA_SIZE + REG_ADDR + TAG_WIDTH + PC_LEN;
 
 	//
 	// Default constructor.
@@ -430,6 +440,7 @@ struct exe_out_t        // TODO: fix all sizes
 			mem_datain  = (sc_bv< DATA_SIZE >)0;
 			dest_reg    = (sc_bv< REG_ADDR >)0;
 			tag         = (sc_uint< TAG_WIDTH >)0;
+			pc          = (sc_bv< PC_LEN >)0;
 		}
 
 	//
@@ -445,6 +456,7 @@ struct exe_out_t        // TODO: fix all sizes
 			mem_datain = other.mem_datain;
 			dest_reg = other.dest_reg;
 			tag = other.tag;
+			pc = other.pc;
 		}
 
 	//
@@ -468,6 +480,8 @@ struct exe_out_t        // TODO: fix all sizes
 				return false;
 			if ( !(tag == other.tag) )
 				return false;
+			if ( !(pc == other.pc) )
+				return false;
 			return true;
 		}
 
@@ -484,6 +498,7 @@ struct exe_out_t        // TODO: fix all sizes
 			mem_datain = other.mem_datain;
 			dest_reg = other.dest_reg;
 			tag = other.tag;
+			pc = other.pc;
 			return *this;
 		}
 
@@ -497,6 +512,7 @@ struct exe_out_t        // TODO: fix all sizes
 		m& mem_datain;
 		m& dest_reg;
 		m& tag;
+		m& pc;
 
   	}
   	
@@ -513,6 +529,7 @@ struct exe_out_t        // TODO: fix all sizes
 		sc_trace(tf, object.mem_datain, in_name + std::string(".mem_datain"));
 		sc_trace(tf, object.dest_reg, in_name + std::string(".dest_reg"));
 		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+		sc_trace(tf, object.pc, in_name + std::string(".pc"));
 	}
 	
 	//
@@ -529,6 +546,7 @@ struct exe_out_t        // TODO: fix all sizes
 		os << "," <<  object.mem_datain;
 		os << "," <<  object.dest_reg;
 		os << "," <<  object.tag;
+		os << "," <<  object.pc;
 		os << ")";
 
 		return os;
@@ -554,8 +572,9 @@ struct mem_out_t
 	sc_bv< REG_ADDR > regfile_address;
 	sc_bv< XLEN > regfile_data;
 	sc_uint< TAG_WIDTH > tag;
+	sc_bv< PC_LEN > pc;
 
-	static const int width = 1 + REG_ADDR + XLEN + TAG_WIDTH;
+	static const int width = 1 + REG_ADDR + XLEN + TAG_WIDTH + PC_LEN;
 	//
 	// Default constructor.
 	//
@@ -565,6 +584,7 @@ struct mem_out_t
 			regfile_address = (sc_bv< REG_ADDR >)0;
 			regfile_data    = (sc_bv< XLEN >)0;
 			tag             = (sc_uint< TAG_WIDTH >)0;
+			pc             = (sc_bv< PC_LEN >)0;
 		}
 
 	//
@@ -576,6 +596,7 @@ struct mem_out_t
 			regfile_address = other.regfile_address;
 			regfile_data = other.regfile_data;
 			tag = other.tag;
+			pc = other.pc;
 		}
 
 	//
@@ -591,6 +612,8 @@ struct mem_out_t
 				return false;
 			if ( !(tag == other.tag) )
 				return false;
+			if ( !(pc == other.pc) )
+				return false;
 			return true;
 		}
 
@@ -603,6 +626,7 @@ struct mem_out_t
 			regfile_address = other.regfile_address;
 			regfile_data = other.regfile_data;
 			tag = other.tag;
+			pc = other.pc;
 			return *this;
 		}
 
@@ -612,7 +636,7 @@ struct mem_out_t
     	m& regfile_address;
 		m& regfile_data;
 		m& tag;
-
+		m& pc;
   	}
   	
   	//
@@ -624,6 +648,7 @@ struct mem_out_t
 		sc_trace(tf, object.regfile_address, in_name + std::string(".regfile_address"));
 		sc_trace(tf, object.regfile_data, in_name + std::string(".regfile_data"));
 		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+		sc_trace(tf, object.pc, in_name + std::string(".pc"));
 	}
 	
 	//
@@ -636,6 +661,7 @@ struct mem_out_t
 		os << "," <<  object.regfile_address;
 		os << "," <<  object.regfile_data;
 		os << "," <<  object.tag;
+		os << "," <<  object.pc;
 		os << ")";
 		return os;
 	}
@@ -659,8 +685,9 @@ struct reg_forward_t
 	bool ldst;
 	bool sync_fewb;
 	sc_uint< TAG_WIDTH > tag;
+	sc_bv< PC_LEN > pc;
 
-	static const int width = XLEN + 1 + TAG_WIDTH + 1;
+	static const int width = XLEN + 1 + TAG_WIDTH + 1 + PC_LEN;
 	//
 	// Default constructor.
 	//
@@ -670,6 +697,7 @@ struct reg_forward_t
 			ldst            = false;
 			sync_fewb       = false;
 			tag             = (sc_uint< TAG_WIDTH >)0;
+			pc              = (sc_bv< PC_LEN >)0;
 		}
 
 	//
@@ -681,6 +709,7 @@ struct reg_forward_t
 			ldst = other.ldst;
 			sync_fewb = other.sync_fewb;
 			tag = other.tag;
+			pc = other.pc;
 		}
 
 	//
@@ -696,6 +725,8 @@ struct reg_forward_t
 				return false;
 			if ( !(tag == other.tag) )
 				return false;
+			if ( !(pc == other.pc) )
+				return false;
 			return true;
 		}
 
@@ -708,6 +739,7 @@ struct reg_forward_t
 			ldst = other.ldst;
 			sync_fewb = other.sync_fewb;
 			tag = other.tag;
+			pc = other.pc;
 			return *this;
 		}
 
@@ -717,7 +749,7 @@ struct reg_forward_t
 		m& ldst;
 		m& sync_fewb;
 		m& tag;
-
+		m& pc;
   	}
   	
   	//
@@ -729,6 +761,7 @@ struct reg_forward_t
 		sc_trace(tf, object.ldst, in_name + std::string(".ldst"));
 		sc_trace(tf, object.sync_fewb, in_name + std::string(".sync_fewb"));
 		sc_trace(tf, object.tag, in_name + std::string(".tag"));
+		sc_trace(tf, object.pc, in_name + std::string(".pc"));
 	}
 	
 	//
@@ -742,6 +775,7 @@ struct reg_forward_t
 			os << "," << " mem";
 		os << "," <<  object.tag;
 		os << "," <<  object.sync_fewb;
+		os << "," <<  object.pc;
 		os << ")";
 		return os;
 	}
@@ -1193,6 +1227,81 @@ struct fe_in_t
 		os <<  object.freeze;
 		os <<  object.redirect;
 		os <<  object.address;
+		os << ")";
+		return os;
+	}
+
+};
+#endif
+
+// ------------ stall_t
+#ifndef stall_t_SC_WRAPPER_TYPE
+#define stall_t_SC_WRAPPER_TYPE 1
+
+struct stall_t
+{
+	//
+	// Member declarations.
+	//
+	bool			stall;
+	
+	static const int width = 1;
+	//
+	// Default constructor.
+	//
+	stall_t()
+		{
+			stall             = false;
+		}
+
+	//
+	// Copy constructor.
+	//
+	stall_t( const stall_t& other )
+		{
+			stall    = other.stall;
+		}
+
+	//
+	// Comparison operator.
+	//
+	inline bool operator == ( const stall_t& other )
+		{
+			if ( !(stall == other.stall) )
+				return false;	
+			return true;
+		}
+
+	//
+	// Assignment operator.
+	//
+	inline stall_t& operator = ( const stall_t& other )
+		{
+			stall = other.stall;
+
+			return *this;
+		}
+
+	template<unsigned int Size>
+  	void Marshall(Marshaller<Size>& m) {
+    	m& stall;
+  	}
+  	
+  	//
+	// sc_trace function.
+	//
+	inline friend void sc_trace( sc_trace_file* tf, const stall_t& object, const std::string& in_name )
+	{
+		sc_trace(tf, object.stall, in_name + std::string(".stall"));
+	}
+	
+	//
+	// stream operator.
+	//
+	inline friend ostream & operator << ( ostream & os, const stall_t& object )
+	{
+		os << "(";
+		os <<  object.stall;
 		os << ")";
 		return os;
 	}

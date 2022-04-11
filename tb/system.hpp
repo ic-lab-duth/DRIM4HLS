@@ -75,6 +75,15 @@ public:
 	Connections::Combinational< dmem_in_t > exe2dmem_ch; 
 	Connections::Combinational< dmem_in_t > wb2dmem_ch;
 
+	Connections::Combinational< stall_t > dmem2fe_stall_ch;
+	Connections::Combinational< stall_t > dmem2de_stall_ch; 
+	Connections::Combinational< stall_t > dmem2exe_stall_ch;
+	Connections::Combinational< stall_t > dmem2wb_stall_ch;
+	Connections::Combinational< stall_t > dmem2imem_stall_ch;
+
+	Connections::Combinational< stall_t > imem2fe_stall_ch;
+	Connections::Combinational< stall_t > imem2de_stall_ch; 
+
 	SC_CTOR(TOP)
 		: clk("clk")
 		, rst("rst")
@@ -116,6 +125,14 @@ public:
 		m_dut->data_in(data_in);
 		m_dut->data_out(data_out);
 
+		m_dut->dmem2fe_stall(dmem2fe_stall_ch);
+		m_dut->dmem2de_stall(dmem2de_stall_ch);
+		m_dut->dmem2exe_stall(dmem2exe_stall_ch);
+		m_dut->dmem2wb_stall(dmem2wb_stall_ch);
+
+		m_dut->imem2fe_stall(imem2fe_stall_ch);
+		m_dut->imem2de_stall(imem2de_stall_ch);
+
 		// Connect the testbench
 		m_tb->clk(clk);
 		m_tb->rst(rst);
@@ -134,13 +151,22 @@ public:
 		m_imem->rst(cpu_rst);
 		m_imem->imem_out(imem2de_ch);
 		m_imem->imem_in(fe2imem_ch);
-		m_imem->imem_stall_in(de2imem_ch);
+		m_imem->stall_in(de2imem_ch);
+		m_imem->dmem_stall_in(dmem2imem_stall_ch);
+		m_imem->stall_fe(imem2fe_stall_ch);
+		m_imem->stall_de(imem2de_stall_ch);
 
 		m_dmem->clk(clk);
 		m_dmem->rst(cpu_rst);
 		m_dmem->dmem_out(dmem2wb_ch);
 		m_dmem->dmem_in_write(wb2dmem_ch);
 		m_dmem->dmem_in_read(exe2dmem_ch);
+
+		m_dmem->stall_fe(dmem2fe_stall_ch);
+		m_dmem->stall_de(dmem2de_stall_ch);
+		m_dmem->stall_exe(dmem2exe_stall_ch);
+		m_dmem->stall_memwb(dmem2wb_stall_ch);
+		m_dmem->stall_imem(dmem2imem_stall_ch);
 	}
 
 	~TOP()

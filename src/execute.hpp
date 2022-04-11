@@ -36,19 +36,18 @@ SC_MODULE(execute)
 {
 	// FlexChannel initiators
 	Connections::In< de_out_t > din;
+	Connections::In< stall_t > dmem_stall;
 	Connections::Out< exe_out_t > dout;
 	Connections::Out< dmem_in_t > dmem_in;
 
 	// Forward
-	sc_out< reg_forward_t > fwd_exe;
-	
+	Connections::Out< reg_forward_t > fwd_exe;
 	// Clock and reset signals
 	sc_in_clk clk;
 	sc_in<bool> rst;
 
 	// Thread prototype
 	void execute_th(void);
-	//void perf_th(void);
 
 	// Support functions
 	sc_bv<XLEN> sign_extend_imm_s(sc_bv<12> imm);       // Sign extend the S-type immediate field.
@@ -65,6 +64,7 @@ SC_MODULE(execute)
 		: din("din")
 		, dout("dout")
 		, dmem_in("dmem_in")
+		, dmem_stall("dmem_stall")
 		, fwd_exe("fwd_exe")
 		, clk("clk")
 		, rst("rst")
@@ -74,13 +74,21 @@ SC_MODULE(execute)
 	}
 
 	// Member variables
+	de_out_t data_in;
 	de_out_t input;
 	exe_out_t output;
 	dmem_in_t dmem_din;
+	stall_t dmem_stall_d;
+	stall_t imem_stall_d;
 
 	sc_uint<XLEN> csr[CSR_NUM]; // Control and status registers.
 	
 	reg_forward_t forward;
+
+	bool dmem_freeze;
+
+	sc_bv< XLEN > forward_data;
+	sc_uint< TAG_WIDTH > forward_tag;
 };
 
 

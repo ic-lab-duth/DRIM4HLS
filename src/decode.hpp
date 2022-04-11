@@ -27,10 +27,12 @@ public:
 	Connections::In< mem_out_t > feed_from_wb;
 	Connections::In< imem_out_t > imem_out;
     Connections::In< fe_out_t > fetch_din;
+	Connections::In< stall_t > dmem_stall;
+	Connections::In< stall_t > imem_stall;
 
 	// Forward
-	sc_in< reg_forward_t > fwd_exe;
-
+	//sc_in< reg_forward_t > fwd_exe;
+	Connections::In< reg_forward_t > fwd_exe;
 	// End of simulation signal.
 	sc_out < bool > program_end;
 
@@ -76,6 +78,7 @@ public:
 		, pre_b_icount("pre_b_icount")
 		, imem_out("imem_out")
 		, imem_stall_out("imem_stall_out")
+		, dmem_stall("dmem_stall")
 	{
 		SC_CTHREAD(decode_th, clk.pos());
 		reset_signal_is(rst, false);
@@ -90,6 +93,11 @@ public:
 	de_out_t    output;					// Contains data for the execute stage
     fe_out_t    input;					// Contains data from the fetch stage
     fe_in_t     fetch_out;				// Contains data for the fetch stage about processor stalls
+	stall_t			  dmem_stall_d;
+	stall_t			  imem_stall_d;
+
+	reg_forward_t fwd;
+	reg_forward_t temp_fwd;  
 	
 	sc_bv<INSN_LEN>   insn;         	// Contains full instruction fetched from IMEM. Used in decoding.
 	unsigned int      imem_data;		// Contains instruction data
@@ -109,13 +117,22 @@ public:
 	sc_bv<XLEN> regfile[REG_NUM];
 	// Keeps track of in-flight instructions that are going to overwrite a
 	// register. Implements a primitive stall mechanism for RAW hazards.
-	sc_uint<TAG_WIDTH>  sentinel[REG_NUM];
+	sc_bv<XLEN + 1> sentinel[REG_NUM];
+	sc_uint<TAG_WIDTH> previous_tag;
 	sc_uint<TAG_WIDTH> tag;
 	// Stalls processor and sends a nop operation to the execute stage
 	bool freeze;
 	// Flushes current instruction in order to sychronize processor with a
 	// change of direction in the execution
 	bool flush;
+
+	bool dmem_freeze;
+	bool imem_freeze;
+
+	bool forward_success_rs1;
+	bool forward_success_rs2;
+
+	sc_uint<OPCODE_SIZE> opcode;
 };
 
 #endif

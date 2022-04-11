@@ -71,9 +71,18 @@ public:
 	Connections::In< dmem_out_t > dmem2wb_data; 
 	Connections::Out< dmem_in_t > wb2dmem_data;
 	Connections::Out< dmem_in_t > exe2dmem_data;
-	// Forwarding
-	sc_signal< reg_forward_t > fwd_exe_ch;
 
+	Connections::In< stall_t > dmem2fe_stall; 
+	Connections::In< stall_t > dmem2de_stall; 
+	Connections::In< stall_t > dmem2exe_stall; 
+	Connections::In< stall_t > dmem2wb_stall;
+
+	Connections::In< stall_t > imem2fe_stall; 
+	Connections::In< stall_t > imem2de_stall; 
+
+	// Forwarding
+	//sc_signal< reg_forward_t > fwd_exe_ch;
+	Connections::Combinational< reg_forward_t > fwd_exe_ch;
 	SC_HAS_PROCESS(hl5);
 
 	hl5(sc_module_name name)
@@ -94,6 +103,12 @@ public:
 		, dmem2wb_data("dmem2wb_data")
 		, wb2dmem_data("wb2dmem_data")
 		, exe2dmem_data("exe2dmem_data")
+		, dmem2fe_stall("dmem2fe_stall")
+		, dmem2de_stall("dmem2de_stall")
+		, dmem2exe_stall("dmem2exe_stall")
+		, dmem2wb_stall("dmem2wb_stall")
+		, imem2fe_stall("imem2fe_stall")
+		, imem2de_stall("imem2de_stall")
 		, fe("Fetch")
 		, dec("Decode")
 		, exe("Execute")
@@ -108,6 +123,8 @@ public:
 		fe.entry_point(entry_point);
 		
 		fe.imem_din(fe2imem_data);
+		fe.dmem_stall(dmem2fe_stall);
+		fe.imem_stall(imem2fe_stall);
 
 		// DECODE
 		dec.clk(clk);
@@ -128,6 +145,8 @@ public:
 
 		dec.imem_stall_out(de2imem_data);
 		dec.imem_out(imem2de_data);
+		dec.dmem_stall(dmem2de_stall);
+		dec.imem_stall(imem2de_stall);
 
 		// EXE
 		exe.clk(clk);
@@ -137,6 +156,7 @@ public:
 		exe.fwd_exe(fwd_exe_ch);
 
 		exe.dmem_in(exe2dmem_data);
+		exe.dmem_stall(dmem2exe_stall);
 
 		// MEM
 		mewb.clk(clk);
@@ -147,10 +167,10 @@ public:
 		
 		mewb.dmem_out(dmem2wb_data);
 		mewb.dmem_in(wb2dmem_data);
+		mewb.dmem_stall(dmem2wb_stall);
 	}
 
 	// Instantiate the modules
-	//fedec fede;
 	fetch fe;
 	decode dec;
 	execute exe;

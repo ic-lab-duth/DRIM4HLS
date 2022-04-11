@@ -21,10 +21,11 @@ FETCH_RST:
 		dout.Reset();
 		fetch_din.Reset();
 		imem_din.Reset();
+		dmem_stall.Reset();
+		imem_stall.Reset();
 
 		trap = "0";
 		trap_cause = NULL_CAUSE;
-		counter = 2;
         imem_in.valid = true;
 		imem_in.instr_addr = 0;
 
@@ -41,21 +42,34 @@ FETCH_BODY:
 		
 		if (fetch_din.PopNB(fetch_in)) {
 			// Mechanism for incrementing PC
-			if (fetch_in.redirect && counter == 2 && fetch_in.address != pc) {
-				pc = fetch_in.address;
-				counter = 0;
-			}else if(!fetch_in.freeze) {
-				pc = sc_uint<PC_LEN>(pc + 4);			
-			}
+			redirect = fetch_in.redirect;
+			redirect_addr = fetch_in.address;
+			freeze = fetch_in.freeze;
 		}else {
-			pc = sc_uint<PC_LEN>(pc + 4);
+			redirect = false;
+			freeze = false;
 		}
-		unsigned int aligned_pc;
 
-		// Counter becomes 0 when processor changes direction (because of jumps/branches)
-		if (counter != 2) {
-			counter++;
+		if (dmem_stall.PopNB(dmem_stall_d)) {
+			dmem_freeze = dmem_stall_d.stall;
+		}else {
+			dmem_freeze = false;
 		}
+
+		if (imem_stall.PopNB(imem_stall_d)) {
+			imem_freeze = imem_stall_d.stall;
+		}else {
+			imem_freeze = false;
+		}
+
+		// Mechanism for incrementing PC
+		if (redirect && redirect_addr != pc && !dmem_freeze && !imem_freeze) {
+			pc = fetch_in.address;
+		}else if(!freeze && !dmem_freeze && !imem_freeze) {
+			pc = sc_uint<PC_LEN>(pc + 4);			
+		}
+
+		unsigned int aligned_pc;
 
 		imem_pc = pc;
 

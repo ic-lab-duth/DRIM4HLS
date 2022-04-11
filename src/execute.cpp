@@ -98,6 +98,9 @@ EXE_RST:
 		din.Reset();
 		dout.Reset();
 		dmem_in.Reset();
+		dmem_stall.Reset();
+		fwd_exe.Reset();
+		
 		output.tag = 0;
 
                 csr[MISA_I] = 0x40001101; // RV32IMA
@@ -115,7 +118,16 @@ EXE_BODY:
 	while(true) {
 		csr[MCYCLE_I]++;
 		// Get
-		input = din.Pop();
+		if(!dmem_freeze) {
+			input = data_in;
+			data_in = din.Pop();
+		}else {din.Pop();}
+
+		if (dmem_stall.PopNB(dmem_stall_d)) {
+			dmem_freeze = dmem_stall_d.stall;
+		}else {
+			dmem_freeze = false;
+		}
 
 		// Compute
 		output.regwrite = input.regwrite;
@@ -125,6 +137,7 @@ EXE_BODY:
 		output.dest_reg = input.dest_reg;
 		output.mem_datain = input.rs2;
 		output.tag = input.tag;
+		output.pc = input.pc;
 
 		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << input.pc << endl);
 		
@@ -133,7 +146,6 @@ EXE_BODY:
             input.ld == NO_LOAD &&
             input.st == NO_STORE &&
             input.alu_op ==  (sc_bv<ALUOP_SIZE>)ALUOP_NULL) {
-			DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "NOP " << endl);
             nop = true;
 		}
 
@@ -357,11 +369,8 @@ EXE_BODY:
 			break;
 		}
 
-
-		// Forward
-		forward.regfile_data = output.alu_res;
-		forward.tag = output.tag;
-		if (input.ld != NO_LOAD || input.st != NO_STORE) {
+		
+		if ((input.ld != NO_LOAD || input.st != NO_STORE) && !nop) {
 			forward.ldst = true;
 			dmem_din.read_en = true;
 		}
@@ -369,14 +378,31 @@ EXE_BODY:
 			forward.ldst = false;
 			dmem_din.read_en = false;
 		}
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "forward.sync_fewb " << forward.sync_fewb <<endl);
+
+		if (output.alu_res == ALUOP_NULL) {
+			forward.ldst = true;
+		}
+
+		if(!nop) {
+			forward.tag = output.tag;
+			forward.regfile_data = output.alu_res;
+			forward.pc = input.pc;
+		}
+
+		
+
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "forward.regfile_data " << forward.regfile_data <<endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "forward.tag " << forward.tag <<endl);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "output.alu_res " << output.alu_res <<endl);
 		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " output.ld " << output.ld << endl);
 		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " output.st " << output.st << endl);
 		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " output.regwrite  " << output.regwrite <<endl);
-		fwd_exe.write(forward);
+		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << " output.dest_reg  " << output.dest_reg <<endl);
+		fwd_exe.Push(forward);
 
-                if (!nop)
-                    csr[MINSTRET_I]++;
+    	if (!nop)
+            csr[MINSTRET_I]++;
+			
 		unsigned int dmem_read_index = output.alu_res.to_uint();
 		dmem_din.data_addr = dmem_read_index >> 2;
 		// Put
@@ -384,8 +410,6 @@ EXE_BODY:
 		dout.Push(output);
 		dmem_in.Push(dmem_din);
 		
-		DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "push to mem " << output << endl);
-
 		DPRINT(endl);
 		wait();
 	}

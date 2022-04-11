@@ -20,26 +20,29 @@ public:
 	// Declaration of clock and reset parameters
 	sc_in < bool > clk;
 	sc_in < bool > rst;
-	// TODO: removeme
-	// sc_in < bool > main_start;
-	// sc_in < bool > main_end;
+
 	Connections::Out< dmem_out_t > dmem_out; 
 	Connections::In< dmem_in_t > dmem_in_read;
 	Connections::In< dmem_in_t > dmem_in_write;
-	// Instruction counters
-	// sc_in < unsigned int > data_addr; 
-	// sc_in < sc_uint<XLEN> > data_in; 
-	// sc_out < sc_uint<XLEN> > data_out; 
 
-	// sc_in < bool > valid;
-	// sc_in < bool > read_en; 
-	// sc_in < bool > write_en;  
+	Connections::Out< stall_t > stall_fe;
+	Connections::Out< stall_t > stall_de; 
+	Connections::Out< stall_t > stall_exe; 
+	Connections::Out< stall_t > stall_memwb;
+	Connections::Out< stall_t > stall_imem;
 
 	sc_uint<XLEN> *dmem;
 
 	dmem_out_t dmem_dout;
 	dmem_in_t dmem_din_read;
 	dmem_in_t dmem_din_write;
+	stall_t imem_stall_din;
+
+	stall_t stall_fe_d;
+	stall_t stall_de_d;
+	stall_t stall_exe_d;
+	stall_t stall_memwb_d;
+	stall_t stall_dmem_d;
 	
 	void dmem_th();
 
@@ -47,14 +50,6 @@ public:
 	dmem_interface(sc_module_name name, sc_uint<XLEN> dmem[ICACHE_SIZE])
 		: clk("clk")
 		, rst("rst")
-		// , main_start("main_start")
-		// , main_end("main_end")
-		// , data_addr("data_addr")
-		// , data_in("data_in")
-		// , data_out("data_out")
-		// , valid("valid")
-		// , read_en("read")
-		// , write_en("write")
 		, dmem_out("dmem_out")
 		, dmem_in_read("dmem_in_read")
 		, dmem_in_write("dmem_in_write")
