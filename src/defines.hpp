@@ -1,10 +1,13 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// defines.h - Robert Margelli
-// This file contains several defines. Some of which must be
-// commented/uncommented correctly before running.
-//
+	@brief 
+    This file contains several defines. Some of which must be
+    commented/uncommented correctly before running.
+
+	@note No changes from HL5
+
+*/
 
 #ifndef DEFINES_H
 #define DEFINES_H

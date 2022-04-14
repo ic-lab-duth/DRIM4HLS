@@ -1,15 +1,15 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// tb.h - Robert Margelli
-// Testbench header file.
-//
+	@brief Header file for data instruction stage.
+
+*/
 
 #ifndef __IMEM_INT__H
 #define __IMEM_INT__H
 
 #include <systemc.h>
-#include "../src/hl5_datatypes.hpp"
+#include "../src/drim4hls_datatypes.hpp"
 
 #include "../src/globals.hpp"
 #include "../src/defines.hpp"

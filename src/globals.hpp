@@ -1,9 +1,12 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// globals.h - Robert Margelli
-// This file several defines and constants: number of registers, data width, opcodes etc.
-//
+	@brief 
+    This file several defines and constants: number of registers, data width, opcodes etc
+
+	@note No changes from HL5
+
+*/
 
 #ifndef GLOBALS_H
 #define GLOBALS_H

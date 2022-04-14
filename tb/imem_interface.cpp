@@ -1,12 +1,9 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// tb.cpp - Robert Margelli
-// Implementation of tb.hpp.
-// In a normal run the source thread does nothing, while the sink waits for the
-// program_end signal to be asserted and stops simulation
-// (sc_stop).
-//
+	@brief Implementation of data memory
+
+*/
 
 #include "imem_interface.hpp"
 #include <random>
@@ -21,6 +18,8 @@
 // Source thread
 void imem_interface::fetch_instr()
 {	
+IMEM_RST:
+	{
 	imem_in.Reset();
 	imem_out.Reset();
 	stall_in.Reset();
@@ -28,7 +27,8 @@ void imem_interface::fetch_instr()
 
 	stall_fe.Reset();
 	stall_de.Reset();
-
+	}
+IMEM_BODY:	
 	while (true)
 	{	imem_din = imem_in.Pop();
 

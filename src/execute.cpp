@@ -1,9 +1,9 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// execute.cpp - Robert Margelli
-// Implementation of the execute stage
-//
+	@brief Implementation of execute stage
+
+*/
 
 #include "execute.hpp"
 

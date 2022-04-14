@@ -1,66 +1,52 @@
-# HL5: A 32-bit RISC-V processor designed with HLS
+# DRIM4HLS: A 32-bit RISC-V processor designed with HLS
 
 This is a high-level description in SystemC of an in-order 32-bit RISC-V core.
+The processor is based on the [HL5 core](https://github.com/sld-columbia/hl5 "HL5") from Columbia university. It supports the "RV32IM", Base Integer Instruction Set (RV32I) with the Standard Extension for Integer Multiplication and Division (M). The core uses synthesizable latency-insensitive channels from the [Connections](https://github.com/hlslibs/matchlib_connections "Connections") hardware library for communication between different components. DRIM4HLS was synthesized using Mentor's Catapult 10.5a and verified with QuestaSim 2019.3_1.
 
-## Installing the RISC-V toolchain
+| ![overview](./images/drim4hls_overview.png) |
+|:--:|
+| *Overview of DRIM4HLS core* |
 
-Test programs must be compiled with the RISC-V toolchain.
+## Getting started
 
-```bash
-git clone --recursive https://github.com/riscv/riscv-gnu-toolchain.git
-cd riscv-gnu-toolchain
-mkdir build
-cd build
-../configure --prefix=<custom_target_path> --with-arch=rv32ima --with-abi=ilp32
-make
-```
+### Tool versions
 
-To compile the test programs, make sure that `riscv32-unknown-elf-gcc` is PATH.
+In order to simulate the core the following tools are needed.
 
-```bash
-cd <hl5>/soft
-make
-```
+* `gcc` - 9.4.0
+* `systemc` - 2.3.3
+* `connections` - 1.2.6
 
-## Simulating and Synthesizing HL5
+You can download SystemC from [here](https://www.accellera.org/downloads/standards/systemc "SystemC download") and Connections from [here](https://github.com/hlslibs/matchlib_connections "Connections download").
 
-Simulation and synthesis run within the _Cadence Stratus HLS 17.2_ environment.
-In addition to Stratus HLS, simulation is configured to use _Incisive_ as the
-RTL and SystemC simulator.  You may change this configuration from the Stratus
-`project.tcl` script.
+For synthesizing the core and verifying its functionality the additional tools are needed
 
-For instance, to run HLS and generate RTL for the `BASIC` HLS configuration,
-enter the HLS folder and run the following target.
+* `catapult` - 10.5a
+* `QuestaSim` - 2019.3_1
 
-```bash
-cd <hl5>/hls
-make hls_BASIC
-```
+## Compiling
 
-To run a simulation of the C program `soft/aes256_1.c`, compile the test
-programs, then execute the following targets.
+A `Makefile` is provided inside the project directory in order to easily compile the core. The Makefile uses the following variables:
 
-```bash
-cd <hl5>/hls
-# Behavioral simulation
-make sim_BEH_aes256_1_P
-# RTL simulation for BASIC HLS configuration
-make sim_BASIC_aes256_1_V
-# RTL simulation with GUI support
-make debug_BASIC_aes256_1_V
-```
+* `HOME`
+* `SYSTEMC_HOME`
+* `PROJECT_DIR`
 
-The simulation will print on screen the content of the program counter, the
-instruction register and the register file. Colors highlight stalls (in red),
-registers for which there is a pending write back (yellow) and registers that
-have been updated during the latest instruction commit.
+Change their values inside the Makefile to the ones corresponding to your workstation.
 
-The target for synthesis is set to the Xilinx Artix7 FPGA, which is available on
-the ZYNQ SoCs.
+Then to compile the core run inside the home project directory.
 
-If you use this work, please reference the following paper.
+    make
 
-> _*[HL5: A 32-bit RISC-V Processor Designed with High-Level
-> Synthesis](https://www.sld.cs.columbia.edu/pubs/mantovani_cicc20.pdf).*
-> Paolo Mantovani, Robert Margelli, Davide Giri, and Luca P. Carloni.
-> In the Proceedings of the Custom Integrated Circuits Conference (CICC), 2020._
+The compilation will create an executable with the name `sim_sc`.
+## Simulation
+
+The repository contains a folder called `examples`, containing four testing programs for simulating the core. In order to execute a testing program, a `.txt` file containing the instructions of the program must be passed to the executable `sim_sc`.
+
+    cd examples/<program_name>
+    ./sim_sc <program_name.txt>
+
+The simulation of the core will produce two `.txt` files in the project directory. The `initial_dmem.txt` representing the memory of the core after loading the program and the `report_dmem.txt` representing the memory of the core after the execution of the testing program.
+
+## Create your own testing programs
+(COMING SOON)

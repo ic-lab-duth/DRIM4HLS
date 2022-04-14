@@ -1,32 +1,37 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// hl5.h - Robert Margelli
-// Header file of the hl5 CPU container.
-// This module instantiates the stages and interconnects them.
-//
+	@brief 
+	Header file for the drim4hls CPU container.
+	This module instantiates the stages and interconnects them.
 
-#ifndef __HL5__H
-#define __HL5__H
+	@note Changes from HL5
+
+		- Use of HLSLibs connections for communication with the rest of the processor.
+
+		- Connection with memories outside of the processor.
+
+
+*/
+
+#ifndef __DRIM4HLS__H
+#define __DRIM4HLS__H
 
 #include <systemc.h>
 #include <mc_connections.h>
+#include <mc_scverify.h>
 
-#include "hl5_datatypes.hpp"
+#include "drim4hls_datatypes.hpp"
 #include "defines.hpp"
 #include "globals.hpp"
 
 #include "execute.hpp"
-#include "memwb.hpp"
+#include "writeback.hpp"
 #include "fetch.hpp"
 #include "decode.hpp"
 
-// #include "execute.cpp"
-// #include "memwb.cpp"
-// #include "fetch.cpp"
-// #include "decode.cpp"
-
-SC_MODULE(hl5)
+#pragma hls_design_top
+SC_MODULE(drim4hls)
 {
 public:
 	// Declaration of clock and reset signals
@@ -81,11 +86,10 @@ public:
 	Connections::In< stall_t > imem2de_stall; 
 
 	// Forwarding
-	//sc_signal< reg_forward_t > fwd_exe_ch;
 	Connections::Combinational< reg_forward_t > fwd_exe_ch;
-	SC_HAS_PROCESS(hl5);
+	SC_HAS_PROCESS(drim4hls);
 
-	hl5(sc_module_name name)
+	drim4hls(sc_module_name name)
 		: clk("clk")
 		, rst("rst")
 		, program_end("program_end")
@@ -112,7 +116,7 @@ public:
 		, fe("Fetch")
 		, dec("Decode")
 		, exe("Execute")
-		, mewb("Memory")
+		, wb("Writeback")
 	{
 		// FETCH
 		fe.clk(clk);
@@ -159,22 +163,22 @@ public:
 		exe.dmem_stall(dmem2exe_stall);
 
 		// MEM
-		mewb.clk(clk);
-		mewb.rst(rst);
-		mewb.din(exe2mem_ch);
-		mewb.dout(wb2de_ch);
-		mewb.fetch_en(fetch_en);
+		wb.clk(clk);
+		wb.rst(rst);
+		wb.din(exe2mem_ch);
+		wb.dout(wb2de_ch);
+		wb.fetch_en(fetch_en);
 		
-		mewb.dmem_out(dmem2wb_data);
-		mewb.dmem_in(wb2dmem_data);
-		mewb.dmem_stall(dmem2wb_stall);
+		wb.dmem_out(dmem2wb_data);
+		wb.dmem_in(wb2dmem_data);
+		wb.dmem_stall(dmem2wb_stall);
 	}
 
 	// Instantiate the modules
 	fetch fe;
 	decode dec;
 	execute exe;
-	memwb mewb;
+	writeback wb;
 };
 
-#endif  // end __HL5__H
+#endif  // end __DRIM4HLS__H

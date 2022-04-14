@@ -1,12 +1,12 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// tb.cpp - Robert Margelli
-// Implementation of tb.hpp.
-// In a normal run the source thread does nothing, while the sink waits for the
-// program_end signal to be asserted and stops simulation
-// (sc_stop).
-//
+	@brief 
+	Implementation of tb.hpp.
+	In a normal run the source thread does nothing, while the sink waits for the
+	program_end signal to be asserted and stops simulation
+	(sc_stop).
+*/
 
 #include "tb.hpp"
 

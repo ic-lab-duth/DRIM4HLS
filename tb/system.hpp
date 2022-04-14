@@ -1,21 +1,27 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// system.h - Robert Margelli
-// Top-level model header file.
-// Instantiates the CPU, TB, IMEM, DMEM.
-//
+	@brief 
+	Top-level model header file.
+	Instantiates the CPU, TB, IMEM, DMEM.
+	
+	@note Changes from HL5
+
+		- Use of HLSLibs connections for communication with the rest of the processor.
+
+		- Connect processor with memory
+*/
 
 #ifndef SYSTEM_H_INCLUDED
 #define SYSTEM_H_INCLUDED
 
 #include <systemc.h>
 
-#include "../src/hl5_datatypes.hpp"
+#include "../src/drim4hls_datatypes.hpp"
 #include "../src/defines.hpp"
 #include "../src/globals.hpp"
 
-#include "../src/hl5.hpp"
+#include "../src/drim4hls.hpp"
 
 #include "tb.hpp"
 #include "imem_interface.hpp"
@@ -62,7 +68,7 @@ public:
 
 	/* The testbench, DUT, IMEM and DMEM modules. */
 	tb   *m_tb;
-	hl5 *m_dut;
+	drim4hls *m_dut;
 
 	imem_interface *m_imem;
 	dmem_interface *m_dmem;
@@ -93,7 +99,7 @@ public:
 		, entry_point("entry_point")
 	{
 		m_tb = new tb("tb", imem, dmem);
-		m_dut = new hl5("hl5");
+		m_dut = new drim4hls("drim4hls");
 
 		m_imem = new imem_interface("imem_interface", imem);
 		m_dmem = new dmem_interface("dmem_interface", dmem);
@@ -173,8 +179,6 @@ public:
 	{
 		delete m_tb;
 		delete m_dut;
-		delete imem;
-		delete dmem;
 
 		delete m_imem;
 		delete m_dmem;

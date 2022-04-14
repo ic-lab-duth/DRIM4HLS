@@ -40,7 +40,7 @@ $(TEXT): %.txt : %.srec srec2text.py
 	$(QUIET_OBJCOPY) ./srec2text.py $< > $@
 
 $(TARGETS): %.elf : %.c
-	$(QUIET_CC) $(CC) $(CFLAGS) -T lscript bootstrap.s $< -o $@ -nostdlib
+	$(QUIET_CC) $(CC) $(CFLAGS) -T $< -o $@ -nostdlib
 
 clean:
 	$(QUIET_CLEAN) $(RM) $(OBJS) *.lst *.srec *.txt

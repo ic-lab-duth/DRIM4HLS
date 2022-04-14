@@ -1,11 +1,11 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// memory.cpp - Robert Margelli
-// Implementation of the memwb stage ie combined memory and writeback stages.
-//
+	@brief Implementation of writeback stage
 
-#include "memwb.hpp"
+*/
+
+#include "writeback.hpp"
 
 #ifndef __SYNTHESIS__
 	#include <sstream>
@@ -18,9 +18,9 @@
   #define DPRINT(msg)
 #endif
 
-void memwb::memwb_th(void)
+void writeback::writeback_th(void)
 {
-MEMWB_RST:
+WRITEBACK_RST:
 	{	
 		din.Reset();
 		dout.Reset();
@@ -47,7 +47,7 @@ MEMWB_RST:
 
 	}
 
-MEMWB_BODY:
+WRITEBACK_BODY:
 	while(true) {
 
 		// Get
@@ -198,7 +198,7 @@ MEMWB_BODY:
 /* Support functions */
 
 // Sign extend byte read from memory. For LB
-sc_bv<XLEN> memwb::ext_sign_byte(sc_bv<BYTE> read_data)
+sc_bv<XLEN> writeback::ext_sign_byte(sc_bv<BYTE> read_data)
 {
 	if (read_data.range(7,7) == "1")
 		return (sc_bv<BYTE*3>("111111111111111111111111"), read_data);
@@ -207,13 +207,13 @@ sc_bv<XLEN> memwb::ext_sign_byte(sc_bv<BYTE> read_data)
 }
 
 // Zero extend byte read from memory. For LBU
-sc_bv<XLEN> memwb::ext_unsign_byte(sc_bv<BYTE> read_data)
+sc_bv<XLEN> writeback::ext_unsign_byte(sc_bv<BYTE> read_data)
 {
         return ("000000000000000000000000", read_data);
 }
 
 // Sign extend half-word read from memory. For LH
-sc_bv<XLEN> memwb::ext_sign_halfword(sc_bv<BYTE*2> read_data)
+sc_bv<XLEN> writeback::ext_sign_halfword(sc_bv<BYTE*2> read_data)
 {
 	if (read_data.range(15,15) == "1")
 		return (sc_bv<BYTE*2>("1111111111111111"), read_data);
@@ -222,7 +222,7 @@ sc_bv<XLEN> memwb::ext_sign_halfword(sc_bv<BYTE*2> read_data)
 }
 
 // Zero extend half-word read from memory. For LHU
-sc_bv<XLEN> memwb::ext_unsign_halfword(sc_bv<BYTE*2> read_data)
+sc_bv<XLEN> writeback::ext_unsign_halfword(sc_bv<BYTE*2> read_data)
 {
         return ("0000000000000000", read_data);
 }

@@ -1,16 +1,20 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// tb.h - Robert Margelli
-// Testbench header file.
-//
+	@brief 
+	Testbench header file
+	
+	@note Changes from HL5
+
+		- Removed redundant code
+*/
 
 #ifndef __TB__H
 #define __TB__H
 
 #include <time.h>
 #include <systemc.h>
-#include "../src/hl5_datatypes.hpp"
+#include "../src/drim4hls_datatypes.hpp"
 
 #include "../src/globals.hpp"
 #include "../src/defines.hpp"

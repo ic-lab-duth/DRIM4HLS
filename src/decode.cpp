@@ -1,9 +1,9 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// fedec.cpp - Robert Margelli
-// Implementation of the fedec stage ie combined fetch and decode stages.
-//
+	@brief Implementation of decode stage
+
+*/
 
 #include "decode.hpp"
 

@@ -1,20 +1,28 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-// memwb.h - Robert Margelli
-// memory+writeback stage header file.
+	@brief Header file for writeback stage.
 
-#ifndef __MEMWB__H
-#define __MEMWB__H
+	@note Changes from HL5
+
+		- Use of HLSLibs connections for communication with the rest of the processor.
+
+		- Memory is outside of the processor
+
+*/
+
+#ifndef __WRITEBACK__H
+#define __WRITEBACK__H
 
 #include <systemc.h>
 
 #include <mc_connections.h>
 #include "defines.hpp"
 #include "globals.hpp"
-#include "hl5_datatypes.hpp"
+#include "drim4hls_datatypes.hpp"
 
 
-SC_MODULE(memwb)
+SC_MODULE(writeback)
 {
 	// FlexChannel initiators
 	Connections::In< exe_out_t > din;
@@ -33,7 +41,7 @@ SC_MODULE(memwb)
 	sc_in<bool> fetch_en;   // Used to synchronize writeback with fetch at reset.
 
 	// Thread prototype
-	void memwb_th(void);
+	void writeback_th(void);
 	// Function prototypes.
 	sc_bv<XLEN> ext_sign_byte(sc_bv<BYTE> read_data);           // Sign extend byte read from memory. For LB
 	sc_bv<XLEN> ext_unsign_byte(sc_bv<BYTE> read_data);         // Zero extend byte read from memory. For LBU
@@ -41,8 +49,8 @@ SC_MODULE(memwb)
 	sc_bv<XLEN> ext_unsign_halfword(sc_bv<BYTE*2> read_data);   // Zero extend half-word read from memory. For LHU
 
 	// Constructor
-	SC_HAS_PROCESS(memwb);
-	memwb(sc_module_name name)
+	SC_HAS_PROCESS(writeback);
+	writeback(sc_module_name name)
 		: din("din")
 		, dout("dout")
 		, dmem_stall("dmem_stall")
@@ -50,7 +58,7 @@ SC_MODULE(memwb)
 		, rst("rst")
 		, fetch_en("fetch_en")
 	{
-		SC_CTHREAD(memwb_th, clk.pos());
+		SC_CTHREAD(writeback_th, clk.pos());
 		reset_signal_is(rst, false);
 	}
 

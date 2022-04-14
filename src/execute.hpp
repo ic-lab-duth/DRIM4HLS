@@ -1,12 +1,21 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// execute.h - Robert Margelli
-// execute stage header file.
-//
-// Division algorithm for DIV, DIVU, REM, REMU instructions. Division by zero
-// and overflow semantics are compliant with the RISC-V specs (page 32).
-//
+	@brief 
+	Header file for execute stage.
+	Division algorithm for DIV, DIVU, REM, REMU instructions. Division by zero
+	and overflow semantics are compliant with the RISC-V specs (page 32).
+
+	@note Changes from HL5
+
+		- Use of HLSLibs connections for communication with the rest of the processor.
+
+		- Stall functionality
+
+		- Consists of only one thread
+
+
+*/
 
 #ifndef __EXECUTE__H
 #define __EXECUTE__H
@@ -18,7 +27,7 @@
 
 #include "defines.hpp"
 #include "globals.hpp"
-#include "hl5_datatypes.hpp"
+#include "drim4hls_datatypes.hpp"
 
 // Signed division quotient and remainder struct.
 struct div_res_t{

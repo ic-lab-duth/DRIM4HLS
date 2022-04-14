@@ -1,9 +1,6 @@
-/* Copyright 2017 Columbia University, SLD Group */
-
-//
-// system.cpp - Robert Margelli
-// Implementation of system.hpp.
-//
-
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
+	
+*/
 #include "system.hpp"
 

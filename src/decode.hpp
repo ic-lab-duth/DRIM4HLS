@@ -1,9 +1,18 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// fedec.h - Robert Margelli
-// fetch + decoding logic header file.
-//
+	@brief Header file for decode stage
+
+	@note Changes from HL5
+		- Implements the logic only for the decode part from fedec.hpp.
+
+		- Use of HLSLibs connections for communication with the rest of the processor.
+
+		- Stall mechanism manages data dependencies, dynamic load/write memory stalls
+		  and change of program direction.
+
+
+*/
 
 #ifndef __DEC__H
 #define __DEC__H
@@ -14,7 +23,7 @@
 
 #include "defines.hpp"
 #include "globals.hpp"
-#include "hl5_datatypes.hpp"
+#include "drim4hls_datatypes.hpp"
 
 SC_MODULE(decode)
 {

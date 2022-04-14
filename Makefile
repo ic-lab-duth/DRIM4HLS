@@ -2,7 +2,7 @@ CXX = g++
 
 HOME := /home/diamantis
 SYSTEMC_HOME := /home/diamantis/systemc-2.3.3
-PROJECT_DIR := /home/diamantis/HLS/hl5_clean
+PROJECT_DIR := /home/diamantis/HLS/v1.0
 
 INCDIR ?=
 INCDIRS = -isystem $(SYSTEMC_HOME)/include

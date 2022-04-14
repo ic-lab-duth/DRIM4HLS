@@ -1,13 +1,15 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// hl5_datatypes.h - Robert Margelli
-// Definition of custom data structs for storing and exchanging
-// data among pipeline stages.
-// Besides struct fields, all required operators for using them on Flex Channels are defined.
-// Additionally, although not currently useful (but it may be in future works) operators for
-// cynware metaports are defined.
-//
+	@brief 
+    Definition of custom data structs for storing and exchanging
+	data among pipeline stages.
+	Besides struct fields, all required operators for using them on HLSLibs Channels are defined.
+
+	@note Changes from HL5
+		- Added custom datatypes
+
+*/
 
 #ifndef HL5_DATATYPES_H
 #define HL5_DATATYPES_H

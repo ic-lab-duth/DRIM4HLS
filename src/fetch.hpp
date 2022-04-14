@@ -1,9 +1,17 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// fedec.h - Robert Margelli
-// fetch + decoding logic header file.
-//
+	@brief Header file for fetch stage
+
+	@note Changes from HL5
+		- Implements the logic only for the fetch part from fedec.hpp.
+
+		- Use of HLSLibs connections for communication with the rest of the processor.
+
+		- Increment program counter based on new stall functionality.
+
+
+*/
 
 #ifndef __FETCH__H
 #define __FETCH__H
@@ -14,7 +22,7 @@
 
 #include "defines.hpp"
 #include "globals.hpp"
-#include "hl5_datatypes.hpp"
+#include "drim4hls_datatypes.hpp"
 
 SC_MODULE(fetch)
 {

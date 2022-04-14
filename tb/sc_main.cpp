@@ -1,10 +1,11 @@
-/* Copyright 2017 Columbia University, SLD Group */
+/*	
+	@author VLSI Lab, EE dept., Democritus University of Thrace
 
-//
-// main.cpp - Robert Margelli
-// Instantiates the top-level module (system) and
-// launches simulation (sc_start).
-//
+	@brief
+	Instantiates the top-level module (system) and
+	launches simulation (sc_start).
+
+*/
 #include <mc_scverify.h>
 #include <mc_connections.h>
 #include "system.hpp"
