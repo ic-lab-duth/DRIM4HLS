@@ -49,4 +49,45 @@ The repository contains a folder called `examples`, containing four testing prog
 The simulation of the core will produce two `.txt` files in the project directory. The `initial_dmem.txt` representing the memory of the core after loading the program and the `report_dmem.txt` representing the memory of the core after the execution of the testing program.
 
 ## Create your own testing programs
-(COMING SOON)
+
+In order to generate your own testing programs from some C code, the [RISC-V GNU Compiler Toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain "RISC-V GNU Compiler Toolchain download") is needed. The provided testing programs in the examples folder used the `8.2.0` version of the toolchain.
+
+Clone the repository from the [above link](https://github.com/riscv-collab/riscv-gnu-toolchain "RISC-V GNU Compiler Toolchain download") and follow the instructions for downloading several standard packages needed to to build the toolchain.
+
+### Installing the toolchain
+
+The following commands will configure the toolchain and build it.
+
+    ./configure --prefix=<custom_path> --enable-multilib
+    make
+
+Change `<custom_path>` to the desired location, for example `/opt/riscv`.
+
+### Linker script and bootloader
+
+Furthermore, a linker script, `lscript`, is needed (provided inside the examples folder) and a file, `bootloader`, with assembly code which calls the main() function (provided inside the examples folder).
+
+### Compile C code
+
+Before compiling the C code `riscv64-unknown-elf-gcc` must be in `$PATH`. In order to add it, run:
+
+    export PATH=/<custom_path>/bin:$PATH
+
+To compile some C code and create an object `ELF` file, run:
+
+     riscv64-unknown-elf-gcc -O3 -march=rv32ima -mabi=ilp32 -T lscript  bootstrap.s notmain.c -o notmain.elf -nostdlib
+
+### Create SREC file from ELF
+
+SREC files conveys binary information as hex values. In order to create the file run:
+
+     riscv64-unknown-elf-objcopy -O srec --gap-fill 0 notmain.elf notmain.srec
+
+### Create TXT file form SREC
+
+A `.txt` file containing the initial state of the core's memory (instructions and data) after the testing program is loaded is needed. This file will be passed as an argument to the core in order to start the simulation. To create the `.txt` from the `.srec` file, the `srec2text.py` script from [HL5](https://github.com/sld-columbia/hl5/blob/master/soft/srec2text.py "HL5 srec2txt.py") is used (also contained inside examples folder).
+
+
+    ./srec2text.py notmain.srec > notmain.txt
+
+Finally, the `notmain.txt` is reade and can be used to simulate the testing program on the core. 
