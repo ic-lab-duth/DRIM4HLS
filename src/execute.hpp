@@ -95,7 +95,7 @@ SC_MODULE(execute)
 	reg_forward_t forward;
 
 	bool dmem_freeze;
-
+	bool freeze;
 	sc_bv< XLEN > forward_data;
 	sc_uint< TAG_WIDTH > forward_tag;
 };

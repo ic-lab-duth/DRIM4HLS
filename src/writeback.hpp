@@ -78,6 +78,7 @@ SC_MODULE(writeback)
 	stall_t dmem_stall_d;
 	bool dmem_freeze;
 	bool dmem_data_valid;
+	bool freeze;
 
 };
 

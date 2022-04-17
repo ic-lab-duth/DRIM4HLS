@@ -118,17 +118,18 @@ EXE_BODY:
 	while(true) {
 		csr[MCYCLE_I]++;
 		// Get
-		if(!dmem_freeze) {
-			input = data_in;
-			data_in = din.Pop();
-		}else {din.Pop();}
-
 		if (dmem_stall.PopNB(dmem_stall_d)) {
 			dmem_freeze = dmem_stall_d.stall;
 		}else {
 			dmem_freeze = false;
 		}
 
+		if(!freeze) {
+			input = data_in;
+			data_in = din.Pop();
+		}else {din.Pop();}
+
+		freeze = dmem_freeze;
 		// Compute
 		output.regwrite = input.regwrite;
 		output.memtoreg = input.memtoreg;

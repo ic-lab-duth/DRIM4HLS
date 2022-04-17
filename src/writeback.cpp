@@ -55,18 +55,18 @@ WRITEBACK_BODY:
 			input = input2;
 			input2 = din.Pop();
 		}else {din.Pop();}
+
+		if (dmem_stall.PopNB(dmem_stall_d)) {
+			dmem_freeze = dmem_stall_d.stall;
+		}else {
+			dmem_freeze = false;
+		}
 		
 		sc_uint<XLEN> dmem_data;
 		
 		if (dmem_out.PopNB(dmem_din)) {
 			dmem_data = dmem_din.data_out;
 			dmem_data_valid = dmem_din.valid ;
-		}
-
-		if (dmem_stall.PopNB(dmem_stall_d)) {
-			dmem_freeze = dmem_stall_d.stall;
-		}else {
-			dmem_freeze = false;
 		}
 
 		if (dmem_data_valid && sc_uint<3>(input.ld) == NO_LOAD && dmem_freeze) {
