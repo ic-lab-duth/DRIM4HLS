@@ -40,16 +40,6 @@ FETCH_BODY:
 	while(true) {
 		//sc_assert(sc_time_stamp().to_double() < 1000000);
 		
-		if (fetch_din.PopNB(fetch_in)) {
-			// Mechanism for incrementing PC
-			redirect = fetch_in.redirect;
-			redirect_addr = fetch_in.address;
-			freeze = fetch_in.freeze;
-		}else {
-			redirect = false;
-			freeze = false;
-		}
-
 		if (dmem_stall.PopNB(dmem_stall_d)) {
 			dmem_freeze = dmem_stall_d.stall;
 		}else {
@@ -60,6 +50,16 @@ FETCH_BODY:
 			imem_freeze = imem_stall_d.stall;
 		}else {
 			imem_freeze = false;
+		}
+
+		if (fetch_din.PopNB(fetch_in)) {
+			// Mechanism for incrementing PC
+			redirect = fetch_in.redirect;
+			redirect_addr = fetch_in.address;
+			freeze = fetch_in.freeze;
+		}else {
+			redirect = false;
+			freeze = false;
 		}
 
 		// Mechanism for incrementing PC
