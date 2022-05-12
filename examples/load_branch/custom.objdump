@@ -1,0 +1,37 @@
+
+custom.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00002537          	lui	a0,0x2
+   4:	71050513          	addi	a0,a0,1808 # 2710 <custom+0x26dc>
+   8:	00050113          	mv	sp,a0
+   c:	008000ef          	jal	ra,14 <notmain>
+
+00000010 <hang>:
+  10:	0000006f          	j	10 <hang>
+
+00000014 <notmain>:
+  14:	ff010113          	addi	sp,sp,-16
+  18:	00112623          	sw	ra,12(sp)
+  1c:	018000ef          	jal	ra,34 <custom>
+  20:	00c12083          	lw	ra,12(sp)
+  24:	00000513          	li	a0,0
+  28:	01010113          	addi	sp,sp,16
+  2c:	00008067          	ret
+
+00000030 <done>:
+  30:	00008067          	ret
+
+00000034 <custom>:
+  34:	00900093          	li	ra,9
+  38:	00c00113          	li	sp,12
+  3c:	00008237          	lui	tp,0x8
+  40:	06820213          	addi	tp,tp,104 # 8068 <custom+0x8034>
+  44:	00110133          	add	sp,sp,ra
+  48:	00e10113          	addi	sp,sp,14
+  4c:	00122023          	sw	ra,0(tp) # 0 <_start>
+  50:	00022283          	lw	t0,0(tp) # 0 <_start>
+  54:	fc515ee3          	bge	sp,t0,30 <done>

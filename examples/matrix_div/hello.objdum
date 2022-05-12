@@ -1,0 +1,25 @@
+
+hello.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00002537          	lui	a0,0x2
+   4:	71050513          	addi	a0,a0,1808 # 2710 <array+0x26d8>
+   8:	00050113          	mv	sp,a0
+   c:	008000ef          	jal	ra,14 <notmain>
+
+00000010 <hang>:
+  10:	0000006f          	j	10 <hang>
+
+00000014 <notmain>:
+  14:	03800793          	li	a5,56
+  18:	01078613          	addi	a2,a5,16
+  1c:	0047a703          	lw	a4,4(a5)
+  20:	0007a683          	lw	a3,0(a5)
+  24:	00478793          	addi	a5,a5,4
+  28:	02d74733          	div	a4,a4,a3
+  2c:	00e7a023          	sw	a4,0(a5)
+  30:	fec796e3          	bne	a5,a2,1c <notmain+0x8>
+  34:	00008067          	ret
