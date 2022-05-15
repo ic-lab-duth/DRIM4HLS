@@ -43,8 +43,8 @@ build: sim_sc
 run:
 	./sim_sc
 
-sim_sc: $(wildcard ./tb/*.cpp) $(wildcard ./src/*.cpp) $(wildcard ./tb/*.hpp) $(wildcard ./src/*.hpp)
-	$(CXX) -o sim_sc $(CFLAGS) $(USER_FLAGS) $(wildcard ./tb/*.cpp) $(wildcard ./src/*.cpp) $(LIBS)
+sim_sc: $(wildcard ./src/*.cpp) $(wildcard ./src/*.h)
+	$(CXX) -o sim_sc $(CFLAGS) $(USER_FLAGS) $(wildcard ./src/*.cpp) $(LIBS)
 
 clean:
 	rm -f sim_sc
