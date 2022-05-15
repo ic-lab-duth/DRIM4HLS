@@ -16,70 +16,67 @@
 #ifndef __FETCH__H
 #define __FETCH__H
 
-#ifndef NDEBUG
-  #include <iostream>
-  #define DPRINT(msg) std::cout << msg;
+#ifndef NDEBUG#include <iostream>
+
+#define DPRINT(msg) std::cout << msg;
 #endif
 
 #include <systemc.h>
 
 #include "defines.h"
+
 #include "globals.h"
+
 #include "drim4hls_datatypes.h"
 
 #include <mc_connections.h>
 
-SC_MODULE(fetch)
-{
-public:
-	// Clock and reset signals
-	sc_in<bool> CCS_INIT_S1(clk);
-	sc_in< bool > CCS_INIT_S1(rst);
-	// Channel ports
-	Connections::In< fe_in_t > CCS_INIT_S1(fetch_din);
-	Connections::In< imem_out_t > CCS_INIT_S1(imem_dout);
-	Connections::Out< imem_in_t > CCS_INIT_S1(imem_din);
-	Connections::Out< fe_out_t > CCS_INIT_S1(dout);
-	Connections::Out< imem_out_t > CCS_INIT_S1(imem_de);
+SC_MODULE(fetch) {
+    public:
+    // Clock and reset signals
+    sc_in < bool > CCS_INIT_S1(clk);
+    sc_in < bool > CCS_INIT_S1(rst);
+    // Channel ports
+    Connections::In < fe_in_t > CCS_INIT_S1(fetch_din);
+    Connections::In < imem_out_t > CCS_INIT_S1(imem_dout);
+    Connections::Out < imem_in_t > CCS_INIT_S1(imem_din);
+    Connections::Out < fe_out_t > CCS_INIT_S1(dout);
+    Connections::Out < imem_out_t > CCS_INIT_S1(imem_de);
 
-	// Trap signals. TODO: not used. Left for future implementations.
-	sc_signal< bool > CCS_INIT_S1(trap); //sc_out
-	sc_signal< sc_uint<LOG2_NUM_CAUSES> > CCS_INIT_S1(trap_cause); //sc_out
+    // Trap signals. TODO: not used. Left for future implementations.
+    sc_signal < bool > CCS_INIT_S1(trap); //sc_out
+    sc_signal < sc_uint < LOG2_NUM_CAUSES > > CCS_INIT_S1(trap_cause); //sc_out
 
     // *** Internal variables
-	sc_uint<PC_LEN>   pc;           // Init. to -4, then before first insn fetch it will be updated to 0.	 
-	sc_uint<PC_LEN>   imem_pc;		// Used in fetching from instruction memory
+    sc_uint < PC_LEN > pc; // Init. to -4, then before first insn fetch it will be updated to 0.	 
+    sc_uint < PC_LEN > imem_pc; // Used in fetching from instruction memory
 
-	// Custom datatypes used for retrieving and sending data through the channels
-	imem_in_t		  imem_in;		// Contains data for fetching from the instruction memory
-	fe_out_t		  fe_out;		// Contains data for the decode stage
-	fe_in_t			  fetch_in;		// Contains data from the decode stage used in incrementing the PC
-	imem_out_t 		  imem_out;
-	
-	bool redirect;
-	sc_uint<PC_LEN>   redirect_addr;
+    // Custom datatypes used for retrieving and sending data through the channels
+    imem_in_t imem_in; // Contains data for fetching from the instruction memory
+    fe_out_t fe_out; // Contains data for the decode stage
+    fe_in_t fetch_in; // Contains data from the decode stage used in incrementing the PC
+    imem_out_t imem_out;
 
-	bool freeze;
+    bool redirect;
+    sc_uint < PC_LEN > redirect_addr;
 
-    SC_CTOR(fetch)
-		: imem_din("imem_din")
-		, fetch_din("fetch_din")
-		, dout("dout")
-		, imem_dout("imem_dout")
-		, imem_de("imem_de")
-		, clk("clk")
-		, rst("rst")
-	{
-		SC_THREAD(fetch_th);
+    bool freeze;
+
+    SC_CTOR(fetch): imem_din("imem_din"),
+    fetch_din("fetch_din"),
+    dout("dout"),
+    imem_dout("imem_dout"),
+    imem_de("imem_de"),
+    clk("clk"),
+    rst("rst") {
+        SC_THREAD(fetch_th);
         sensitive << clk.pos();
-		async_reset_signal_is(rst, false);
+        async_reset_signal_is(rst, false);
 
-	}
+    }
 
-    void fetch_th(void)
-    {
-    FETCH_RST:
-        {
+    void fetch_th(void) {
+        FETCH_RST: {
             dout.Reset();
             fetch_din.Reset();
             imem_din.Reset();
@@ -88,9 +85,7 @@ public:
 
             trap = "0";
             trap_cause = NULL_CAUSE;
-            imem_in.valid = true;
             imem_in.instr_addr = 0;
-
 
             //  Init. pc to START_ADDRESS - 4 as on first fetch it will be incremented by
             //  4, thus fetching instruction at address 0
@@ -98,10 +93,9 @@ public:
             wait();
         }
 
-    FETCH_BODY:
-        while(true) {
+        FETCH_BODY: while (true) {
             //sc_assert(sc_time_stamp().to_double() < 1000000);
-        
+
             if (fetch_din.PopNB(fetch_in)) {
                 // Mechanism for incrementing PC
                 redirect = fetch_in.redirect;
@@ -112,8 +106,8 @@ public:
             // Mechanism for incrementing PC
             if (redirect && redirect_addr != pc) {
                 pc = fetch_in.address;
-            }else if(!freeze) {
-                pc = sc_uint<PC_LEN>(pc + 4);			
+            } else if (!freeze) {
+                pc = sc_uint < PC_LEN > (pc + 4);
             }
 
             unsigned int aligned_pc;
@@ -122,26 +116,24 @@ public:
 
             aligned_pc = imem_pc >> 2;
             imem_in.instr_addr = aligned_pc;
-            
+
             fe_out.pc = pc;
-            
+
             if (!freeze) {
                 imem_din.Push(imem_in);
 
                 imem_out = imem_dout.Pop();
-                
+
                 imem_de.Push(imem_out);
                 dout.Push(fe_out);
             }
-            
-            
+
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << pc << endl);
             DPRINT(endl);
             wait();
 
         } // *** ENDOF while(true)
-    }   // *** ENDOF sc_cthread
+    } // *** ENDOF sc_cthread
 };
-
 
 #endif
