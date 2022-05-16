@@ -17,22 +17,18 @@
 #ifndef __DEC__H
 #define __DEC__H
 
+#ifndef NDEBUG
+    #include <iostream>
+    #define DPRINT(msg) std::cout << msg;
+#endif
+
 #include "defines.h"
-
 #include "globals.h"
-
 #include "drim4hls_datatypes.h"
-
 #include <mc_connections.h>
 
 SC_MODULE(decode) {
     public:
-
-    #ifndef NDEBUG#include <iostream>
-
-    #define DPRINT(msg) std::cout << msg;
-    #endif
-
     // Clock and reset signals
     sc_in < bool > CCS_INIT_S1(clk);
     sc_in < bool > CCS_INIT_S1(rst);

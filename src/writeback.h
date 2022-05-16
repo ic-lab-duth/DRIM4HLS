@@ -14,23 +14,19 @@
 #ifndef __WRITEBACK__H
 #define __WRITEBACK__H
 
-#ifndef __SYNTHESIS__#include <sstream>
-
+#ifndef __SYNTHESIS__
+    #include <sstream>
 #endif
 
-#ifndef NDEBUG#include <iostream>
-
-#define DPRINT(msg) std::cout << msg;
+#ifndef NDEBUG
+    #include <iostream>
+    #define DPRINT(msg) std::cout << msg;
 #endif
 
 #include <systemc.h>
-
 #include "defines.h"
-
 #include "globals.h"
-
 #include "drim4hls_datatypes.h"
-
 #include <mc_connections.h>
 
 SC_MODULE(writeback) {

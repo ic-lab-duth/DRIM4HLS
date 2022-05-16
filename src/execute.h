@@ -20,21 +20,17 @@
 #ifndef __EXECUTE__H
 #define __EXECUTE__H
 
-#ifndef NDEBUG#include <iostream>
-
-#define DPRINT(msg) std::cout << msg;
+#ifndef NDEBUG
+    #include <iostream>
+    #define DPRINT(msg) std::cout << msg;
 #endif
 
 #define BIT(_N)(1 << _N)
 
 #include <systemc.h>
-
 #include "defines.h"
-
 #include "globals.h"
-
 #include "drim4hls_datatypes.h"
-
 #include <mc_connections.h>
 
 // Signed division quotient and remainder struct.
@@ -50,6 +46,7 @@ struct u_div_res_t {
 };
 
 SC_MODULE(execute) {
+    
     #ifndef __SYNTHESIS__
     struct debug_exe_out // TODO: fix all sizes
     {

@@ -198,7 +198,7 @@ int sc_main(int argc, char * argv[]) {
 
     std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    //std::string testing_program = "home/dpatsidis/Desktop/HLS4DRIM/examples/binary_search/hello.txt";
+    //std::string testing_program = "home/dpatsidis/Desktop/HLS4DRIM-main/examples/binary_search/hello.txt";
 
     Top top("top", testing_program);
     sc_start();

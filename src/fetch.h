@@ -16,19 +16,15 @@
 #ifndef __FETCH__H
 #define __FETCH__H
 
-#ifndef NDEBUG#include <iostream>
-
-#define DPRINT(msg) std::cout << msg;
+#ifndef NDEBUG
+    #include <iostream>
+    #define DPRINT(msg) std::cout << msg;
 #endif
 
 #include <systemc.h>
-
 #include "defines.h"
-
 #include "globals.h"
-
 #include "drim4hls_datatypes.h"
-
 #include <mc_connections.h>
 
 SC_MODULE(fetch) {

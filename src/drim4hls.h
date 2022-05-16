@@ -18,17 +18,11 @@
 #define __DRIM4HLS__H
 
 #include "drim4hls_datatypes.h"
-
 #include "defines.h"
-
 #include "globals.h"
-
 #include "fetch.h"
-
 #include "decode.h"
-
 #include "execute.h"
-
 #include "writeback.h"
 
 #include <mc_connections.h>
