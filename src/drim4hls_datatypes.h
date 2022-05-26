@@ -14,18 +14,15 @@
 #ifndef HL5_DATATYPES_H
 #define HL5_DATATYPES_H
 
-#include <systemc.h>
-
-#include <mc_connections.h>
-
-#include "defines.h"
-
-#include "globals.h"
-
 // Fetch
 // ------------ fe_in_t
 #ifndef de_in_t_SC_WRAPPER_TYPE
 #define de_in_t_SC_WRAPPER_TYPE 1
+
+#include "defines.h"
+#include "globals.h"
+
+#include <mc_connections.h>
 
 struct de_in_t {
     //
@@ -74,7 +71,7 @@ struct de_in_t {
     }
 
     //
-    // Assignment operator from fe_in_t.
+    // Assignment operator from de_in_t.
     //
     inline de_in_t & operator = (const de_in_t & other) {
         jump = other.jump;
@@ -120,7 +117,7 @@ struct de_in_t {
 };
 
 #endif
-// ------------ END fe_in_t
+// ------------ END de_in_t
 
 // ------------ fe_out_t
 #ifndef fe_out_t_SC_WRAPPER_TYPE
@@ -158,7 +155,7 @@ struct fe_out_t {
     }
 
     //
-    // Assignment operator from fe_in_t.
+    // Assignment operator from fe_out_t.
     //
     inline fe_out_t & operator = (const fe_out_t & other) {
         pc = other.pc;
@@ -560,9 +557,9 @@ struct mem_out_t {
     inline bool operator == (const mem_out_t & other) {
         if (!(regwrite == other.regwrite))
             return false;
-        if (!(regfile_data == other.regfile_data))
-            return false;
         if (!(regfile_address == other.regfile_address))
+            return false;
+        if (!(regfile_data == other.regfile_data))
             return false;
         if (!(tag == other.tag))
             return false;
@@ -637,7 +634,7 @@ struct reg_forward_t {
     sc_bv < PC_LEN > pc;
 
     static
-    const int width = XLEN + 1 + TAG_WIDTH + 1 + PC_LEN;
+    const int width = XLEN + 1 + 1 + TAG_WIDTH + PC_LEN;
     //
     // Default constructor.
     //
@@ -741,14 +738,14 @@ struct imem_in_t {
     //
     // Member declarations.
     //
-    sc_uint < XLEN > instr_addr;
+    sc_int < XLEN > instr_addr;
 
     static const int width = XLEN;
     //
     // Default constructor.
     //
     imem_in_t() {
-        instr_addr = (sc_uint < XLEN > ) 0;
+        instr_addr = (sc_int < XLEN > ) 0;
     }
 
     //
@@ -1060,7 +1057,7 @@ struct fe_in_t {
     //
     // Copy constructor.
     //
-    fe_in_t(const fe_in_t & other) {
+    fe_in_t(const fe_in_t &other) {
         freeze = other.freeze;
         redirect = other.redirect;
         address = other.address;
@@ -1069,7 +1066,7 @@ struct fe_in_t {
     //
     // Comparison operator.
     //
-    inline bool operator == (const fe_in_t & other) {
+    inline bool operator == (const fe_in_t &other) {
         if (!(freeze == other.freeze))
             return false;
         if (!(redirect == other.redirect))
@@ -1082,7 +1079,7 @@ struct fe_in_t {
     //
     // Assignment operator from stall_t.
     //
-    inline fe_in_t & operator = (const fe_in_t & other) {
+    inline fe_in_t & operator = (const fe_in_t &other) {
         freeze = other.freeze;
         redirect = other.redirect;
         address = other.address;

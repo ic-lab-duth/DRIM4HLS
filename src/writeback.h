@@ -23,10 +23,11 @@
     #define DPRINT(msg) std::cout << msg;
 #endif
 
-#include <systemc.h>
+
+#include "drim4hls_datatypes.h"
 #include "defines.h"
 #include "globals.h"
-#include "drim4hls_datatypes.h"
+
 #include <mc_connections.h>
 
 SC_MODULE(writeback) {
@@ -56,7 +57,7 @@ SC_MODULE(writeback) {
     // Clock and reset signals
     sc_in < bool > CCS_INIT_S1(clk);
     sc_in < bool > CCS_INIT_S1(rst);
-
+	
     // Member variables
     bool freeze;
     bool loading_data;
@@ -83,7 +84,7 @@ SC_MODULE(writeback) {
 
             dout.Reset();
             dmem_in.Reset();
-
+			
             // Write dummy data to decode feedback.
             output.regfile_address = "00000";
             output.regfile_data = (sc_bv < XLEN > ) 0;
@@ -122,6 +123,7 @@ SC_MODULE(writeback) {
 
             // WARNING: only supporting aligned memory accesses
             // Preprocess address
+			
             unsigned int aligned_address = input.alu_res.to_uint();
             unsigned char byte_index = (unsigned char)((aligned_address & 0x3) << 3);
             unsigned char halfword_index = (unsigned char)((aligned_address & 0x2) << 3);
@@ -145,7 +147,6 @@ SC_MODULE(writeback) {
             if (sc_uint < 2 > (input.st) != NO_STORE && !freeze) {
                 dmem_dout.write_en = true;
                 storing_data = true;
-
             }
 
             #ifndef __SYNTHESIS__
@@ -159,10 +160,11 @@ SC_MODULE(writeback) {
                     std::stringstream stm;
                     stm << hex << "D$ access here2 -> 0x" << aligned_address << ". Value: " << input.mem_datain.to_uint() << std::endl;
                 }
-                sc_assert(aligned_address < DCACHE_SIZE);
+                //sc_assert(aligned_address < DCACHE_SIZE);
             }
             #endif
-
+			
+			
             if (sc_uint < 3 > (input.ld) != NO_LOAD && !loading_data) { // a load is requested
 
                 freeze = false;
@@ -274,23 +276,24 @@ SC_MODULE(writeback) {
             if (sc_uint < 2 > (input.st) != NO_STORE && !storing_data) {
                 freeze = false;
             }
+            
             /* Writeback */
             output.regwrite = (storing_data || loading_data) ? "0" : input.regwrite;
             output.regfile_address = input.dest_reg;
-            output.regfile_data = (input.memtoreg == "1") ? mem_dout : input.alu_res;
+            output.regfile_data = (input.memtoreg[0] == "1") ? mem_dout : input.alu_res;
             output.tag = input.tag;
             output.pc = input.pc;
-
+				
             // Put
             if ((storing_data || loading_data) && !freeze) {
                 dmem_in.Push(dmem_dout);
                 freeze = true;
             }
 
-            if (!freeze && output.regwrite == "1") {
+            if (!freeze && output.regwrite[0] == "1") {
                 dout.Push(output);
             }
-
+			
             #ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "freeze=" << freeze << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "load= " << writeback_out_t.load << endl);
@@ -314,28 +317,28 @@ SC_MODULE(writeback) {
 
     // Sign extend byte read from memory. For LB
     sc_bv < XLEN > ext_sign_byte(sc_bv < BYTE > read_data) {
-        if (read_data.range(7, 7) == "1")
-            return (sc_bv < BYTE * 3 > ("111111111111111111111111"), read_data);
+        if (read_data[7] == "1")
+            return (sc_bv < BYTE * 3 > (16777216), read_data);
         else
-            return (sc_bv < BYTE * 3 > ("000000000000000000000000"), read_data);
+            return (sc_bv < BYTE * 3 > (0), read_data);
     }
 
     // Zero extend byte read from memory. For LBU
     sc_bv < XLEN > ext_unsign_byte(sc_bv < BYTE > read_data) {
-        return ("000000000000000000000000", read_data);
+        return (sc_bv < BYTE * 3 > (0), read_data);
     }
 
     // Sign extend half-word read from memory. For LH
     sc_bv < XLEN > ext_sign_halfword(sc_bv < BYTE * 2 > read_data) {
-        if (read_data.range(15, 15) == "1")
-            return (sc_bv < BYTE * 2 > ("1111111111111111"), read_data);
+        if (read_data[15] == "1")
+            return (sc_bv < BYTE * 2 > (65535), read_data);
         else
-            return (sc_bv < BYTE * 2 > ("0000000000000000"), read_data);
+            return (sc_bv < BYTE * 2 > (0), read_data);
     }
 
     // Zero extend half-word read from memory. For LHU
     sc_bv < XLEN > ext_unsign_halfword(sc_bv < BYTE * 2 > read_data) {
-        return ("0000000000000000", read_data);
+        return (sc_bv < BYTE * 2 > (0), read_data);
     }
 
 };

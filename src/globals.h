@@ -11,8 +11,6 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
-#include <systemc.h>
-
 // Miscellanous sizes. Most of these can be changed to obtain new architectures.
 #define XLEN        32      // Register width. 32 or 64. Currently only 32 is supported.
 #define REG_NUM     32      // Number of registers in regfile (x0-x31)    // CONST

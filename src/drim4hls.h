@@ -17,13 +17,14 @@
 #ifndef __DRIM4HLS__H
 #define __DRIM4HLS__H
 
-#include "drim4hls_datatypes.h"
-#include "defines.h"
-#include "globals.h"
 #include "fetch.h"
 #include "decode.h"
 #include "execute.h"
 #include "writeback.h"
+
+#include "drim4hls_datatypes.h"
+#include "defines.h"
+#include "globals.h"
 
 #include <mc_connections.h>
 
@@ -88,10 +89,10 @@ SC_MODULE(drim4hls) {
         fe.clk(clk);
         fe.rst(rst);
         fe.dout(fe2de_ch);
-        fe.fetch_din(de2fe_ch);
         fe.imem_de(fe2de_imem_ch);
         fe.imem_din(fe2imem_data);
         fe.imem_dout(imem2de_data);
+        fe.fetch_din(de2fe_ch);
 
         // DECODE
         dec.clk(clk);

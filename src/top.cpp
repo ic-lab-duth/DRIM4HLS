@@ -1,11 +1,8 @@
 #include <iostream>
 
 #include "drim4hls_datatypes.h"
-
 #include "defines.h"
-
 #include "globals.h"
-
 #include "drim4hls.h"
 
 #include <mc_scverify.h>
@@ -54,10 +51,11 @@ class Top: public sc_module {
     const std::string testing_program;
 
     SC_CTOR(Top);
-    Top(const sc_module_name & name,
-        const std::string & testing_program): clk("clk", 10, SC_NS, 5, 0, SC_NS, true),
+    Top(const sc_module_name &name, const std::string &testing_program): 
+    clk("clk", 10, SC_NS, 5, 0, SC_NS, true),
     m_dut("drim4hls"),
     testing_program(testing_program) {
+        
         Connections::set_sim_clk( & clk);
 
         // Connect the design module
@@ -97,11 +95,10 @@ class Top: public sc_module {
         IMEM_BODY: while (true) {
             imem_din = fe2imem_ch.Pop();
 
-            unsigned int addr;
-
-            addr = imem_din.instr_addr;
-            imem_dout.instr_data = imem[addr];
-
+            unsigned int addr_aligned = imem_din.instr_addr >> 2;
+            
+            imem_dout.instr_data = imem[addr_aligned];
+			
             imem2de_ch.Push(imem_dout);
             wait();
         }
@@ -118,16 +115,14 @@ class Top: public sc_module {
         DMEM_BODY: while (true) {
             dmem_din = wb2dmem_ch.Pop();
             unsigned int addr = dmem_din.data_addr;
-
+             
             if (dmem_din.read_en) {
 
                 dmem_dout.data_out = dmem[addr];
-
             } else if (dmem_din.write_en) {
 
                 dmem[addr] = dmem_din.data_in;
                 dmem_dout.data_out = dmem_din.data_in;
-
             }
 
             // REMOVE	
@@ -152,7 +147,6 @@ class Top: public sc_module {
                 sc_stop();
                 return;
             }
-
             load_program >> std::hex >> imem[index];
             dmem[index] = imem[index];
         }
@@ -166,8 +160,11 @@ class Top: public sc_module {
 
         do {
             wait();
-        } while (!program_end.read());
+        } while (!program_end.read() || icount.read() < 100);
+        wait(5);
+        
         sc_stop();
+        
         long icount_end, j_icount_end, b_icount_end, m_icount_end, o_icount_end, pre_b_icount_end;
 
         icount_end = icount.read();
@@ -196,9 +193,9 @@ int sc_main(int argc, char * argv[]) {
     //     return -1;
     // }
 
-    std::string testing_program = argv[1];
+    //std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    //std::string testing_program = "home/dpatsidis/Desktop/HLS4DRIM-main/examples/binary_search/hello.txt";
+    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS-main/examples/bubblesort/hello.txt";
 
     Top top("top", testing_program);
     sc_start();

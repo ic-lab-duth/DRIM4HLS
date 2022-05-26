@@ -27,10 +27,10 @@
 
 #define BIT(_N)(1 << _N)
 
-#include <systemc.h>
+#include "drim4hls_datatypes.h"
 #include "defines.h"
 #include "globals.h"
-#include "drim4hls_datatypes.h"
+
 #include <mc_connections.h>
 
 // Signed division quotient and remainder struct.
@@ -70,6 +70,7 @@ SC_MODULE(execute) {
     // Clock and reset signals
     sc_in < bool > CCS_INIT_S1(clk);
     sc_in < bool > CCS_INIT_S1(rst);
+    
     // FlexChannel initiators
     Connections::In < de_out_t > CCS_INIT_S1(din);
     Connections::Out < exe_out_t > CCS_INIT_S1(dout);
@@ -155,7 +156,7 @@ SC_MODULE(execute) {
             din.Reset();
             dout.Reset();
             fwd_exe.Reset();
-
+			
             output.tag = 0;
 
             csr[MISA_I] = 0x40001101; // RV32IMA
@@ -169,9 +170,10 @@ SC_MODULE(execute) {
         }
 
         EXE_BODY: while (true) {
+            input = din.Pop();
+            
             csr[MCYCLE_I]++;
 
-            input = din.Pop();
 
             // Compute
             output.regwrite = input.regwrite;
@@ -182,9 +184,9 @@ SC_MODULE(execute) {
             output.mem_datain = input.rs2;
             output.tag = input.tag;
             output.pc = input.pc;
-
+			
             bool nop = false;
-            if (input.regwrite == "0" &&
+            if (input.regwrite[0] == "0" &&
                 input.ld == NO_LOAD &&
                 input.st == NO_STORE &&
                 input.alu_op == (sc_bv < ALUOP_SIZE > ) ALUOP_NULL) {
@@ -213,15 +215,15 @@ SC_MODULE(execute) {
 
             // Sign extend the immediate operand for I-type instructions.
             sc_bv < XLEN > tmp_sigext_imm_i = sc_bv < XLEN > (0);
-            if (input.imm_u.range(19, 19) == "1") {
+            if (input.imm_u[19] == "1") {
                 // Extend with 1s
-                tmp_sigext_imm_i = (sc_bv < 20 > ("11111111111111111111"), (sc_bv < 12 > ) input.imm_u.range(19, 8));
+                tmp_sigext_imm_i = (sc_bv < 20 > (1048575), (sc_bv < 12 > ) input.imm_u.range(19, 8));
             } else {
                 // Extend with 0s
-                tmp_sigext_imm_i = (sc_bv < 20 > ("00000000000000000000"), (sc_bv < 12 > ) input.imm_u.range(19, 8));
+                tmp_sigext_imm_i = (sc_bv < 20 > (0), (sc_bv < 12 > ) input.imm_u.range(19, 8));
             }
             // Zero-fill the immediate operand for U-type instructions.
-            sc_bv < XLEN > tmp_zerofill_imm_u = ((sc_bv < 20 > ) input.imm_u.range(19, 0), sc_bv < 12 > ("000000000000"));
+            sc_bv < XLEN > tmp_zerofill_imm_u = ((sc_bv < 20 > ) input.imm_u.range(19, 0), sc_bv < 12 > (0));
 
             // ALU 2nd operand multiplexing based on ALUSRC signal.
             sc_bv < XLEN > tmp_rs2 = (sc_bv < XLEN > ) 0;
@@ -570,11 +572,11 @@ SC_MODULE(execute) {
                 forward.regfile_data = output.alu_res;
                 forward.pc = input.pc;
             }
-
+			
             fwd_exe.Push(forward);
 
             if (!nop)
-                csr[MINSTRET_I]++;
+               csr[MINSTRET_I]++;
 
             unsigned int dmem_read_index = output.alu_res.to_uint();
             dmem_din.data_addr = dmem_read_index >> 2;
@@ -602,16 +604,16 @@ SC_MODULE(execute) {
 
     // Sign extend immS.
     sc_bv < XLEN > sign_extend_imm_s(sc_bv < 12 > imm) {
-        if (imm.range(11, 11) == "1") // Extend with 1s
-            return (sc_bv < 20 > ("11111111111111111111"), imm);
+        if (imm[11] == "1") // Extend with 1s
+            return (sc_bv < 20 > (1048575), imm);
         else // Extend with 0s
-            return (sc_bv < 20 > ("00000000000000000000"), imm);
+            return (sc_bv < 20 > (0), imm);
     }
 
     #ifdef CSR_LOGIC
     // Zero extends the zimm immediate field of CSRRWI, CSRRSI, CSRRCI
     sc_bv < XLEN > zero_ext_zimm(sc_bv < ZIMM_SIZE > zimm) {
-        return ("000000000000000000000000000", zimm);
+        return (sc_bv < 27 > (0), zimm);
     }
 
     // Return index given a csr address.
@@ -649,7 +651,7 @@ SC_MODULE(execute) {
     // TODO: for now any bits of every register are fully readable/writeable.
     // TODO: This must be changed in future implementations.
     void set_csr_value(sc_uint < CSR_IDX_LEN > csr_index, sc_bv < XLEN > rs1, sc_uint < LOG2_CSR_OP_NUM > operation, sc_bv < 2 > rw_permission) {
-        if (rw_permission != "11")
+        if (sc_uint< 2 > (rw_permission) != 3)
             switch (operation) {
             case CSR_OP_WR:
                 csr[csr_index] = rs1;
