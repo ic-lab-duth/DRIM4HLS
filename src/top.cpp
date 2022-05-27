@@ -99,6 +99,9 @@ class Top: public sc_module {
             
             imem_dout.instr_data = imem[addr_aligned];
 			
+            unsigned int random_stalls = (rand() % 2) + 1;
+            wait(random_stalls);
+
             imem2de_ch.Push(imem_dout);
             wait();
         }
@@ -125,6 +128,8 @@ class Top: public sc_module {
                 dmem_dout.data_out = dmem_din.data_in;
             }
 
+            unsigned int random_stalls = (rand() % 8) + 1;
+            wait(random_stalls);
             // REMOVE	
             dmem2wb_ch.Push(dmem_dout);
             wait();
