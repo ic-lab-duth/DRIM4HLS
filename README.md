@@ -30,12 +30,12 @@ A `Makefile` is provided inside the project directory in order to easily compile
 * `AC_SIMUTILS_HOME`
 * `AC_TYPES_HOME`
 
-Change their values inside the Makefile to the ones corresponding to your environment. Then to compile the core run inside the home project directory.
+Build the SystemC simulation executable by typing:
+   make build
 
-    make
-
-The compilation will create an executable with the name `sim_sc`.
-
+Run the SC simulation by typing:
+   ./sim_sc
+   
 ## Simulating RISCV binaries
 
 The repository contains a folder called `examples`, containing multiple small-scale programs for simulating the processor. In order to execute a testing program, a `.txt` file containing the instructions of the program must be passed to the executable `sim_sc`.
