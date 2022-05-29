@@ -14,39 +14,31 @@ In the future the baseline pipelined processor will be enhanced with multiple ar
 
 ## Getting started
 
-### Tool versions
+In order to simulate DRIM4HLS you would need gcc (testted on version 9.4) and SystemC (tested on version 2.3.3). You can download SystemC from [here](https://www.accellera.org/downloads/standards/systemc "SystemC download"). Also you would need the header-only libraries of [Connections](https://github.com/hlslibs/matchlib_connections "Connections download"), [AC_SIMUTILS](https://github.com/hlslibs/ac_simutils) and [AC_TYPES](https://github.com/hlslibs/ac_types). 
 
-In order to simulate the core the following tools are needed.
+To synthesize the design to RTL you would need a license for Catapult HLS. Also for simulating RTL any logic-level simulator will suffice. We synthesized the processor with Catapult HLS 2021 and simulatd the RTL with QuestaSim 2019.3_1. 
 
-* `gcc` - 9.4.0
-* `systemc` - 2.3.3
-* `connections` - 1.2.6
+The model of DRIM4HLS already incorporates all the pieces needed to run the post-synthesis SCVerify flow of Catapult for automatic RTL verification. 
 
-You can download SystemC from [here](https://www.accellera.org/downloads/standards/systemc "SystemC download") and Connections from [here](https://github.com/hlslibs/matchlib_connections "Connections download").
 
-For synthesizing the core and verifying its functionality the additional tools are needed
+## Compile
 
-* `catapult` - 10.5a
-* `QuestaSim` - 2019.3_1
-
-## Compiling
-
-A `Makefile` is provided inside the project directory in order to easily compile the core. The Makefile uses the following variables:
+A `Makefile` is provided inside the project directory in order to easily compile DRIM4HLS. The Makefile uses the following variables:
 
 * `HOME`
 * `SYSTEMC_HOME`
-* `PROJECT_DIR`
+* `AC_SIMUTILS_HOME`
+* `AC_TYPES_HOME`
 
-Change their values inside the Makefile to the ones corresponding to your workstation.
-
-Then to compile the core run inside the home project directory.
+Change their values inside the Makefile to the ones corresponding to your environment. Then to compile the core run inside the home project directory.
 
     make
 
 The compilation will create an executable with the name `sim_sc`.
-## Simulation
 
-The repository contains a folder called `examples`, containing four testing programs for simulating the core. In order to execute a testing program, a `.txt` file containing the instructions of the program must be passed to the executable `sim_sc`.
+## Simulating RISCV binaries
+
+The repository contains a folder called `examples`, containing multiple small-scale programs for simulating the processor. In order to execute a testing program, a `.txt` file containing the instructions of the program must be passed to the executable `sim_sc`.
 
     cd examples/<program_name>
     ./sim_sc <program_name.txt>
@@ -91,7 +83,6 @@ SREC files conveys binary information as hex values. In order to create the file
 ### Create TXT file form SREC
 
 A `.txt` file containing the initial state of the core's memory (instructions and data) after the testing program is loaded is needed. This file will be passed as an argument to the core in order to start the simulation. To create the `.txt` from the `.srec` file, the `srec2text.py` script from [HL5](https://github.com/sld-columbia/hl5/blob/master/soft/srec2text.py "HL5 srec2txt.py") is used (also contained inside examples folder).
-
 
     ./srec2text.py notmain.srec > notmain.txt
 
