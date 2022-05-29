@@ -6,6 +6,7 @@ The organization of the SystemC model is shown in the following figure
 | ![overview](./images/drim4hls-blocks.png) |
 |:--:|
 | *The organization of DRIM4HLS* |
+
 The blue blocks are part of the processor while the instruction and data memories are used only for simulation. No specific latency is assumed by the memories. All blocks of the processor communicate using the Connections flow-controlled channels (ready/valid). In this way the stalling of instruction execution that naturally appears in all pipelined processors can be smoothly handled by the flow control mechanism inherent in the operation of Connections.
 
 DRIM4HLS can be simulated using open-source libraries without requiring any other tools.
