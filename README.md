@@ -1,11 +1,16 @@
-# DRIM4HLS: A 32-bit RISC-V processor designed with HLS
+# DRIM4HLS: A 32-bit RISC-V processor designed for High Level Synthesis
 
-This is a high-level description in SystemC of an in-order 32-bit RISC-V core.
-The processor is based on the [HL5 core](https://github.com/sld-columbia/hl5 "HL5") from Columbia university. It supports the "RV32IM", Base Integer Instruction Set (RV32I) with the Standard Extension for Integer Multiplication and Division (M). The core uses synthesizable latency-insensitive channels from the [Connections](https://github.com/hlslibs/matchlib_connections "Connections") hardware library for communication between different components. DRIM4HLS was synthesized using Mentor's Catapult 10.5a and verified with QuestaSim 2019.3_1.
+DRIM4HLS is the first model of a 32b RISC-V processor designed with SystemC and [Matchlib's Connections](https://github.com/hlslibs/matchlib_connections "Connections"). The SystemC model is synthesized with High-level synthesis achieving an full-throughput pipeline dataflow. The baseline functionality of the processor is based on the [HL5 core](https://github.com/sld-columbia/hl5 "HL5") from Columbia University. DRIM4HLS was synthesized using Mentor's Catapult 2021 and verified with QuestaSim 2019.3_1. The RTL produced was also validated in an FPGA prototype using Xilinx Nexy 7 board.
 
-| ![overview](./images/drim4hls_overview.png) |
+The organization of the SystemC model is shown in the following figure
+| ![overview](./images/drim4hls-blocks.png) |
 |:--:|
-| *Overview of DRIM4HLS core* |
+| *The organization of DRIM4HLS* |
+The blue blocks are part of the processor while the instruction and data memories are used only for simulation. No specific latency is assumed by the memories. All blocks of the processor communicate using the Connections flow-controlled channels (ready/valid). In this way the stalling of instruction execution that naturally appears in all pipelined processors can be smoothly handled by the flow control mechanism inherent in the operation of Connections.
+
+DRIM4HLS can be simulated using open-source libraries without requiring any other tools.
+
+In the future the baseline pipelined processor will be enhanced with multiple architectural features such as branch prediction and caches that will improve its performance.
 
 ## Getting started
 
