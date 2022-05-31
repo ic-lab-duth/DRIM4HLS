@@ -153,6 +153,7 @@ class Top: public sc_module {
                 return;
             }
             load_program >> std::hex >> imem[index];
+            std::cout << "imem[index]=" << imem[index] << endl;
             dmem[index] = imem[index];
         }
 
@@ -165,7 +166,7 @@ class Top: public sc_module {
 
         do {
             wait();
-        } while (!program_end.read() || icount.read() < 100);
+        } while (!program_end.read());
         wait(5);
         
         sc_stop();
@@ -200,7 +201,7 @@ int sc_main(int argc, char * argv[]) {
 
     //std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS-main/examples/bubblesort/hello.txt";
+    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS/examples/binary_search/hello.txt";
 
     Top top("top", testing_program);
     sc_start();

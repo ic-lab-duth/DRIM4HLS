@@ -93,6 +93,8 @@ SC_MODULE(writeback) {
 
         }
 
+        #pragma hls_pipeline_init_interval 1
+        #pragma pipeline_stall_mode flush
         WRITEBACK_BODY: while (true) {
 
             // Get

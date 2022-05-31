@@ -3,14 +3,16 @@ CXX = g++
 HOME := /home/diamantis
 SYSTEMC_HOME := /home/diamantis/systemc-2.3.3
 PROJECT_DIR := /home/diamantis/HLS/v1.0
+AC_SIMUTILS_HOME := /home/diamantis/ac_simutils
+CONNECTIONS_HOME := /home/diamantis/matchlib_connections
+AC_TYPES_HOME := /home/diamantis/ac_types
 
 INCDIR ?=
 INCDIRS = -isystem $(SYSTEMC_HOME)/include
 INCDIRS += -isystem $(SYSTEMC_HOME)/src/
-INCDIRS += -isystem $(HOME)/ac_simutils/include/
-INCDIRS += -isystem $(HOME)/matchlib_connections/include/
-INCDIRS += -isystem $(HOME)/ac_types/include/
-INCDIRS += -isystem $(PROJECT_DIR)/tb/
+INCDIRS += -isystem $(AC_SIMUTILS_HOME)/include/
+INCDIRS += -isystem $(CONNECTIONS_HOME)/include/
+INCDIRS += -isystem $(AC_TYPES_HOME)/include/
 INCDIRS += -isystem $(PROJECT_DIR)/src/
 
 LIBDIR = -L. -L$(SYSTEMC_HOME)/lib-linux64 -Wl,-rpath=$(SYSTEMC_HOME)/lib-linux64

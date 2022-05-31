@@ -52,8 +52,8 @@ SC_MODULE(decode) {
     sc_out < long int > CCS_INIT_S1(m_icount);
     sc_out < long int > CCS_INIT_S1(o_icount);
     
-    sc_bit jump;
-    sc_bit branch;
+    bool jump;
+    bool branch;
     // Trap signals. TODO: not used. Left for future implementations.
     sc_signal < bool > CCS_INIT_S1(trap); //sc_out
     sc_signal < sc_uint < LOG2_NUM_CAUSES > > CCS_INIT_S1(trap_cause); //sc_out
@@ -180,7 +180,7 @@ SC_MODULE(decode) {
 
             freeze = false;
             flush = false;
-			flush_next = false;
+	     flush_next = false;
             freeze_tmp = false;
             flush_tmp = false;
 
@@ -188,12 +188,14 @@ SC_MODULE(decode) {
             forward_success_rs2 = false;
             
             insn = 0;
-            branch = '0';
-            jump = '0';
+            branch = false;
+            jump = false;
             pc = -4;
             wait();
         }
-
+        
+        #pragma hls_pipeline_init_interval 1
+        #pragma pipeline_stall_mode flush
         DECODE_BODY: while (true) {
             // Retrieve data from instruction memory and fetch stage.
             // If processor stalls then just clear the channels from new data.
@@ -342,7 +344,7 @@ SC_MODULE(decode) {
             // -- Jump.
             if (insn.range(6, 2) == OPC_JAL) {
                 self_feed.jump_address = sc_bv < PC_LEN > ((sc_int < PC_LEN > ) sign_extend_jump(immjal_tmp) + (sc_int < PC_LEN > ) pc);
-                jump = '1';
+                jump = true;
             } else if (insn.range(6, 2) == OPC_JALR) {
                 sc_bv < PC_LEN > extended;
                 if (insn[31] == 0)
@@ -353,18 +355,18 @@ SC_MODULE(decode) {
                 extended.range(11, 0) = insn.range(31, 20);
                 self_feed.jump_address = sc_bv < PC_LEN > ((sc_int < PC_LEN > ) extended + (sc_int < PC_LEN > ) output.rs1);
                 self_feed.jump_address.range(0, 0) = "0";
-                jump = '1';
+                jump = true;
             } else {
-                jump = '0';
+                jump = false;
             }
 
             // -- Branch circuitry.
-            branch = '0';
+            branch = false;
             if (insn.range(6, 2) == OPC_BEQ) { // BEQ,BNE, BLT, BGE, BLTU, BGEU
                 switch (sc_uint < 3 > (sc_bv < 3 > (insn.range(14, 12)))) {
                 case FUNCT3_BEQ:
                     if (output.rs1 == output.rs2)
-						branch = '1'; // BEQ taken.
+						branch = true; // BEQ taken.
                     #ifndef __SYNTHESIS__
                     debug_dout_t.branch_taken = true;
                     #endif
@@ -372,7 +374,7 @@ SC_MODULE(decode) {
                     break;
                 case FUNCT3_BNE:
                     if (output.rs1 != output.rs2) {
-						branch = '1'; //BNE taken.
+						branch = true; //BNE taken.
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -380,7 +382,7 @@ SC_MODULE(decode) {
                     break;
                 case FUNCT3_BLT:
                     if ((sc_int < XLEN > ) output.rs1 < (sc_int < XLEN > ) output.rs2) {
-						branch = '1'; // BLT taken
+						branch = true; // BLT taken
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -388,7 +390,7 @@ SC_MODULE(decode) {
                     break;
                 case FUNCT3_BGE:
                     if ((sc_int < XLEN > ) output.rs1 >= (sc_int < XLEN > ) output.rs2) {
-						branch = '1'; // BGE taken.
+						branch = true; // BGE taken.
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -396,7 +398,7 @@ SC_MODULE(decode) {
                     break;
                 case FUNCT3_BLTU:
                     if ((sc_uint < XLEN > ) output.rs1 < (sc_uint < XLEN > ) output.rs2) {
-						branch = '1'; // BLTU taken.
+						branch = true; // BLTU taken.
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -404,14 +406,14 @@ SC_MODULE(decode) {
                     break;
                 case FUNCT3_BGEU:
                     if ((sc_uint < XLEN > ) output.rs1 >= (sc_uint < XLEN > ) output.rs2) {
-						branch = '1'; // BGEU taken.
+						branch = true; // BGEU taken.
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
                     }
                     break;
                 default:
-                    branch = '0'; // default to not taken.
+                    branch = false; // default to not taken.
                     #ifndef __SYNTHESIS__
                     debug_dout_t.branch_taken = false;
                     #endif

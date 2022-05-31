@@ -168,7 +168,9 @@ SC_MODULE(execute) {
 
             wait();
         }
-
+        
+        #pragma hls_pipeline_init_interval 1
+        #pragma pipeline_stall_mode flush
         EXE_BODY: while (true) {
             input = din.Pop();
             

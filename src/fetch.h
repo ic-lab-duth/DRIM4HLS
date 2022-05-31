@@ -97,7 +97,8 @@ SC_MODULE(fetch) {
             pc_tmp = -4;
             wait();
         }
-
+        #pragma hls_pipeline_init_interval 1
+        #pragma pipeline_stall_mode flush
         FETCH_BODY: while (true) {
             //sc_assert(sc_time_stamp().to_double() < 1000000);
 
