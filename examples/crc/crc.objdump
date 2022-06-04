@@ -1,0 +1,98 @@
+
+crc.elf:     file format elf32-littleriscv
+architecture: riscv:rv32, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED
+start address 0x00000000
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00002537          	lui	a0,0x2
+   4:	71050513          	addi	a0,a0,1808 # 2710 <remainder+0x2650>
+   8:	00050113          	mv	sp,a0
+   c:	08c000ef          	jal	ra,98 <notmain>
+
+00000010 <hang>:
+  10:	0000006f          	j	10 <hang>
+
+00000014 <crc>:
+  14:	fe010113          	addi	sp,sp,-32
+  18:	00812e23          	sw	s0,28(sp)
+  1c:	02010413          	addi	s0,sp,32
+  20:	00f00713          	li	a4,15
+  24:	0ce00023          	sb	a4,192(zero) # c0 <remainder>
+  28:	00800793          	li	a5,8
+  2c:	fef42623          	sw	a5,-20(s0)
+  30:	0400006f          	j	70 <crc+0x5c>
+  34:	0c004783          	lbu	a5,192(zero) # c0 <remainder>
+  38:	01879793          	slli	a5,a5,0x18
+  3c:	4187d793          	srai	a5,a5,0x18
+  40:	0007da63          	bgez	a5,54 <crc+0x40>
+  44:	0c004783          	lbu	a5,192(zero) # c0 <remainder>
+  48:	fd87c793          	xori	a5,a5,-40
+  4c:	0ff7f713          	zext.b	a4,a5
+  50:	0ce00023          	sb	a4,192(zero) # c0 <remainder>
+  54:	0c004783          	lbu	a5,192(zero) # c0 <remainder>
+  58:	00179793          	slli	a5,a5,0x1
+  5c:	0ff7f713          	zext.b	a4,a5
+  60:	0ce00023          	sb	a4,192(zero) # c0 <remainder>
+  64:	fec42783          	lw	a5,-20(s0)
+  68:	fff78793          	addi	a5,a5,-1
+  6c:	fef42623          	sw	a5,-20(s0)
+  70:	fec42783          	lw	a5,-20(s0)
+  74:	fcf040e3          	bgtz	a5,34 <crc+0x20>
+  78:	0c004783          	lbu	a5,192(zero) # c0 <remainder>
+  7c:	0047d793          	srli	a5,a5,0x4
+  80:	0ff7f713          	zext.b	a4,a5
+  84:	0ce00023          	sb	a4,192(zero) # c0 <remainder>
+  88:	00000013          	nop
+  8c:	01c12403          	lw	s0,28(sp)
+  90:	02010113          	addi	sp,sp,32
+  94:	00008067          	ret
+
+00000098 <notmain>:
+  98:	ff010113          	addi	sp,sp,-16
+  9c:	00112623          	sw	ra,12(sp)
+  a0:	00812423          	sw	s0,8(sp)
+  a4:	01010413          	addi	s0,sp,16
+  a8:	f6dff0ef          	jal	ra,14 <crc>
+  ac:	00000013          	nop
+  b0:	00c12083          	lw	ra,12(sp)
+  b4:	00812403          	lw	s0,8(sp)
+  b8:	01010113          	addi	sp,sp,16
+  bc:	00008067          	ret
+
+Disassembly of section .sbss:
+
+000000c0 <remainder>:
+	...
+
+Disassembly of section .riscv.attributes:
+
+00000000 <.riscv.attributes>:
+   0:	2541                	.2byte	0x2541
+   2:	0000                	.2byte	0x0
+   4:	7200                	.2byte	0x7200
+   6:	7369                	.2byte	0x7369
+   8:	01007663          	bgeu	zero,a6,14 <crc>
+   c:	0000001b          	.4byte	0x1b
+  10:	1004                	.2byte	0x1004
+  12:	7205                	.2byte	0x7205
+  14:	3376                	.2byte	0x3376
+  16:	6932                	.2byte	0x6932
+  18:	7032                	.2byte	0x7032
+  1a:	5f30                	.2byte	0x5f30
+  1c:	326d                	.2byte	0x326d
+  1e:	3070                	.2byte	0x3070
+  20:	615f 7032 0030      	.byte	0x5f, 0x61, 0x32, 0x70, 0x30, 0x00
+
+Disassembly of section .comment:
+
+00000000 <.comment>:
+   0:	3a434347          	.4byte	0x3a434347
+   4:	2820                	.2byte	0x2820
+   6:	31202967          	.4byte	0x31202967
+   a:	2e31                	.2byte	0x2e31
+   c:	2e31                	.2byte	0x2e31
+   e:	0030                	.2byte	0x30

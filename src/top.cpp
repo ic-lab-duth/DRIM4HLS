@@ -99,8 +99,8 @@ class Top: public sc_module {
             
             imem_dout.instr_data = imem[addr_aligned];
 			
-            unsigned int random_stalls = (rand() % 2) + 1;
-            wait(random_stalls);
+            //unsigned int random_stalls = (rand() % 2) + 1;
+            //wait(random_stalls);
 
             imem2de_ch.Push(imem_dout);
             wait();
@@ -128,9 +128,10 @@ class Top: public sc_module {
                 dmem_dout.data_out = dmem_din.data_in;
             }
 
-            unsigned int random_stalls = (rand() % 8) + 1;
-            wait(random_stalls);
-            // REMOVE	
+            //unsigned int random_stalls = (rand() % 8) + 1;
+            //wait(random_stalls);
+            // REMOVE
+            std::cout << "dmem[" << addr << "]=" << dmem[addr] << endl;	
             dmem2wb_ch.Push(dmem_dout);
             wait();
         }
@@ -153,7 +154,7 @@ class Top: public sc_module {
                 return;
             }
             load_program >> std::hex >> imem[index];
-            std::cout << "imem[index]=" << imem[index] << endl;
+            std::cout << "imem[" << index << "]=" << imem[index] << endl;
             dmem[index] = imem[index];
         }
 
@@ -170,7 +171,11 @@ class Top: public sc_module {
         wait(5);
         
         sc_stop();
-        
+        int dmem_index;
+        for (dmem_index = 0; dmem_index < 400; dmem_index++) {
+            std::cout << "dmem[" << dmem_index << "]=" << dmem[dmem_index] << endl;
+        }
+
         long icount_end, j_icount_end, b_icount_end, m_icount_end, o_icount_end, pre_b_icount_end;
 
         icount_end = icount.read();
@@ -199,9 +204,9 @@ int sc_main(int argc, char * argv[]) {
     //     return -1;
     // }
 
-    //std::string testing_program = argv[1];
+    std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS/examples/binary_search/hello.txt";
+    //std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS/examples/binary_search/hello.txt";
 
     Top top("top", testing_program);
     sc_start();
