@@ -4,10 +4,10 @@
 
 void *custom();
 
-int notmain()
+void notmain()
 {
 	
 	custom();
 	
-	return 0;
+	//return 0;
 }

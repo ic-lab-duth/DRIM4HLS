@@ -100,7 +100,7 @@ SC_MODULE(fetch) {
         #pragma hls_pipeline_init_interval 1
         #pragma pipeline_stall_mode flush
         FETCH_BODY: while (true) {
-            //sc_assert(sc_time_stamp().to_double() < 1000000);
+            //sc_assert(sc_time_stamp().to_double() < 1500000);
 
             if (fetch_din.PopNB(fetch_in)) {
                 // Mechanism for incrementing PC

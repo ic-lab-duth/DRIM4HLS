@@ -1,12 +1,15 @@
 
 custom.elf:     file format elf32-littleriscv
+architecture: riscv:rv32, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED
+start address 0x00000000
 
 
 Disassembly of section .text:
 
 00000000 <_start>:
    0:	00002537          	lui	a0,0x2
-   4:	71050513          	addi	a0,a0,1808 # 2710 <custom+0x26e0>
+   4:	71050513          	addi	a0,a0,1808 # 2710 <custom+0x26f8>
    8:	00050113          	mv	sp,a0
    c:	008000ef          	jal	ra,14 <notmain>
 
@@ -14,23 +17,48 @@ Disassembly of section .text:
   10:	0000006f          	j	10 <hang>
 
 00000014 <notmain>:
-  14:	ff010113          	addi	sp,sp,-16
-  18:	00112623          	sw	ra,12(sp)
-  1c:	014000ef          	jal	ra,30 <custom>
-  20:	00c12083          	lw	ra,12(sp)
-  24:	00000513          	li	a0,0
-  28:	01010113          	addi	sp,sp,16
-  2c:	00008067          	ret
+  14:	0040006f          	j	18 <custom>
 
-00000030 <custom>:
-  30:	00900093          	li	ra,9
-  34:	00c00113          	li	sp,12
-  38:	00008237          	lui	tp,0x8
-  3c:	06820213          	addi	tp,tp,104 # 8068 <custom+0x8038>
-  40:	00212023          	sw	sp,0(sp)
-  44:	00012183          	lw	gp,0(sp)
-  48:	00110133          	add	sp,sp,ra
-  4c:	0020a023          	sw	sp,0(ra)
-  50:	00e10113          	addi	sp,sp,14
-  54:	0000a203          	lw	tp,0(ra)
-  58:	0040a223          	sw	tp,4(ra)
+00000018 <custom>:
+  18:	00900093          	li	ra,9
+  1c:	00c00113          	li	sp,12
+  20:	00008237          	lui	tp,0x8
+  24:	06820213          	addi	tp,tp,104 # 8068 <custom+0x8050>
+  28:	00112023          	sw	ra,0(sp)
+  2c:	00212023          	sw	sp,0(sp)
+  30:	00412023          	sw	tp,0(sp)
+  34:	00012183          	lw	gp,0(sp)
+  38:	00118193          	addi	gp,gp,1
+  3c:	00218193          	addi	gp,gp,2
+  40:	00012283          	lw	t0,0(sp)
+  44:	00012303          	lw	t1,0(sp)
+  48:	00012383          	lw	t2,0(sp)
+
+Disassembly of section .riscv.attributes:
+
+00000000 <.riscv.attributes>:
+   0:	2541                	.2byte	0x2541
+   2:	0000                	.2byte	0x0
+   4:	7200                	.2byte	0x7200
+   6:	7369                	.2byte	0x7369
+   8:	01007663          	bgeu	zero,a6,14 <notmain>
+   c:	0000001b          	.4byte	0x1b
+  10:	1004                	.2byte	0x1004
+  12:	7205                	.2byte	0x7205
+  14:	3376                	.2byte	0x3376
+  16:	6932                	.2byte	0x6932
+  18:	7032                	.2byte	0x7032
+  1a:	5f30                	.2byte	0x5f30
+  1c:	326d                	.2byte	0x326d
+  1e:	3070                	.2byte	0x3070
+  20:	615f 7032 0030      	.byte	0x5f, 0x61, 0x32, 0x70, 0x30, 0x00
+
+Disassembly of section .comment:
+
+00000000 <.comment>:
+   0:	3a434347          	.4byte	0x3a434347
+   4:	2820                	.2byte	0x2820
+   6:	31202967          	.4byte	0x31202967
+   a:	2e31                	.2byte	0x2e31
+   c:	2e31                	.2byte	0x2e31
+   e:	0030                	.2byte	0x30

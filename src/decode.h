@@ -199,12 +199,6 @@ SC_MODULE(decode) {
         DECODE_BODY: while (true) {
             // Retrieve data from instruction memory and fetch stage.
             // If processor stalls then just clear the channels from new data.
-            
-            if (feed_from_wb.PopNB(feedinput_tmp)) {
-				feedinput = feedinput_tmp;
-            }else {
-				feedinput.regwrite = "0";
-			}
 
             if (fwd_exe.PopNB(temp_fwd)) {
                 fwd = temp_fwd;
@@ -222,6 +216,12 @@ SC_MODULE(decode) {
                 imem_out.Pop();
                 fetch_din.Pop();
             }
+
+            if (feed_from_wb.PopNB(feedinput_tmp)) {
+				feedinput = feedinput_tmp;
+            }else {
+				feedinput.regwrite = "0";
+			}
             
             if (feedinput.regwrite[0] == "1" && (sc_uint < 5 >) feedinput.regfile_address != 0) { // Actual writeback.
                     regfile[sc_uint < REG_ADDR > (feedinput.regfile_address)] = feedinput.regfile_data; // Overwrite register.
@@ -373,7 +373,7 @@ SC_MODULE(decode) {
 
                     break;
                 case FUNCT3_BNE:
-                    if (output.rs1 != output.rs2) {
+                    if ((sc_int < XLEN > ) output.rs1 != (sc_int < XLEN > ) output.rs2) {
 						branch = true; //BNE taken.
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
@@ -1145,7 +1145,7 @@ SC_MODULE(decode) {
             dout.Push(output);
 
             #ifndef __SYNTHESIS__
-            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "insn=" << insn << endl);
+            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "insn=" << insn << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "freeze= " << freeze << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "flush= " << flush << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << debug_dout_t.pc << endl);
