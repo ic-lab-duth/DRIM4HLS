@@ -98,28 +98,17 @@ SC_MODULE(writeback) {
         WRITEBACK_BODY: while (true) {
 
             // Get
-            if (!freeze) {
-                input = din.Pop();
+            input = din.Pop();
 
-                #ifndef __SYNTHESIS__
+            #ifndef __SYNTHESIS__
                 writeback_out_t.aligned_address = 0;
                 writeback_out_t.load_data = 0;
                 writeback_out_t.store_data = 0;
                 writeback_out_t.load = "NO_LOAD";
                 writeback_out_t.store = "NO_STORE";
-                #endif
-            }
+            #endif
 
             sc_uint < XLEN > dmem_data;
-
-            if (dmem_out.PopNB(dmem_din)) {
-                dmem_data = dmem_din.data_out;
-                loading_data = false;
-                storing_data = false;
-
-                dmem_dout.read_en = false;
-                dmem_dout.write_en = false;
-            }
             // Compute
             // *** Memory access.
 
@@ -137,19 +126,8 @@ SC_MODULE(writeback) {
 
             dmem_dout.data_addr = aligned_address;
 
-            if (sc_uint < 3 > (input.ld) != NO_LOAD && !freeze) {
-                dmem_dout.read_en = true;
-                loading_data = true;
-
-                #ifndef __SYNTHESIS__
-                writeback_out_t.load = "LOAD";
-                #endif
-            }
-
-            if (sc_uint < 2 > (input.st) != NO_STORE && !freeze) {
-                dmem_dout.write_en = true;
-                storing_data = true;
-            }
+            dmem_dout.read_en = false;
+            dmem_dout.write_en = false;
 
             #ifndef __SYNTHESIS__
             if (sc_uint < 3 > (input.ld) != NO_LOAD || sc_uint < 2 > (input.st) != NO_STORE) {
@@ -167,9 +145,15 @@ SC_MODULE(writeback) {
             #endif
 			
 			
-            if (sc_uint < 3 > (input.ld) != NO_LOAD && !loading_data) { // a load is requested
+            //if (sc_uint < 3 > (input.ld) != NO_LOAD && !loading_data) { // a load is requested
+            if (sc_uint < 3 > (input.ld) != NO_LOAD) { // a load is requested
+                
+                dmem_dout.read_en = true;
+                dmem_in.Push(dmem_dout);
 
-                freeze = false;
+                dmem_din = dmem_out.Pop();
+                dmem_data = dmem_din.data_out;
+                //freeze = false;
                 switch (sc_uint < 3 > (input.ld)) { // LOAD
                 case LB_LOAD:
                     db = dmem_data.range(byte_index + BYTE - 1, byte_index);
@@ -230,7 +214,9 @@ SC_MODULE(writeback) {
 
                     break; // NO_LOAD
                 }
-            } else if (sc_uint < 2 > (input.st) != NO_STORE && !freeze) { // a store is requested
+            } else if (sc_uint < 2 > (input.st) != NO_STORE) { // a store is requested
+            
+                dmem_dout.write_en = true;
 
                 switch (sc_uint < 2 > (input.st)) { // STORE
                 case SB_STORE: // store 8 bits of rs2
@@ -273,41 +259,32 @@ SC_MODULE(writeback) {
                 }
 
                 dmem_dout.data_in = dmem_data;
+                dmem_in.Push(dmem_dout);
             }
             // *** END of memory access.
-            if (sc_uint < 2 > (input.st) != NO_STORE && !storing_data) {
-                freeze = false;
-            }
             
             /* Writeback */
-            output.regwrite = (storing_data || loading_data) ? "0" : input.regwrite;
+            output.regwrite = input.regwrite;
             output.regfile_address = input.dest_reg;
             output.regfile_data = (input.memtoreg[0] == "1") ? mem_dout : input.alu_res;
             output.tag = input.tag;
             output.pc = input.pc;
 				
             // Put
-            if ((storing_data || loading_data) && !freeze) {
-                dmem_in.Push(dmem_dout);
-                freeze = true;
-            }
-
-            if (!freeze && output.regwrite[0] == "1") {
-                dout.Push(output);
-            }
-			
+		    dout.Push(output);
             #ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "freeze=" << freeze << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "load= " << writeback_out_t.load << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "store= " << writeback_out_t.store << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "input.regwrite=" << input.regwrite << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "regwrite=" << output.regwrite << endl);
+            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "aligned_address=" << aligned_address << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "mem_dout=" << mem_dout << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "input.alu_res=" << input.alu_res << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "output.regfile_address=" << output.regfile_address << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "output.regfile_data=" << output.regfile_data << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "input.memtoreg=" << input.memtoreg << endl);
-            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "pushed to memory=" << ((storing_data || loading_data) && !freeze) << endl);
+            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "writeback_out_t.store_data =" << writeback_out_t.store_data  << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "pushed to fetch=" << (!freeze && output.regwrite == "1") << endl);
             DPRINT(endl);
             #endif

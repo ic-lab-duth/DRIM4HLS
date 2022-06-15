@@ -174,8 +174,7 @@ SC_MODULE(execute) {
         EXE_BODY: while (true) {
             input = din.Pop();
             
-            csr[MCYCLE_I]++;
-
+            csr[MCYCLE_I]++;            
 
             // Compute
             output.regwrite = input.regwrite;
@@ -188,13 +187,12 @@ SC_MODULE(execute) {
             output.pc = input.pc;
 			
             bool nop = false;
-            if (input.regwrite[0] == "0" &&
+            if (input.regwrite[0] == 0 &&
                 input.ld == NO_LOAD &&
                 input.st == NO_STORE &&
                 input.alu_op == (sc_bv < ALUOP_SIZE > ) ALUOP_NULL) {
                 nop = true;
             }
-
             #ifdef MUL64
             // 64-bit temporary multiplication result, for upper 32 bit multiplications (MULH, MULHU, MULHSU).
             int64_t tmp_mul_res = 0;
@@ -559,10 +557,8 @@ SC_MODULE(execute) {
 
             if ((input.ld != NO_LOAD || input.st != NO_STORE) && !nop) {
                 forward.ldst = true;
-                dmem_din.read_en = true;
             } else {
                 forward.ldst = false;
-                dmem_din.read_en = false;
             }
 
             if (output.alu_res == ALUOP_NULL) {
@@ -580,12 +576,13 @@ SC_MODULE(execute) {
             if (!nop)
                csr[MINSTRET_I]++;
 
-            unsigned int dmem_read_index = output.alu_res.to_uint();
-            dmem_din.data_addr = dmem_read_index >> 2;
             // Put
-            dout.Push(output);
+            if (!nop) {
+                dout.Push(output);
+            }
 
             #ifndef __SYNTHESIS__
+            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "nop " << nop << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << input.pc << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "forward.regfile_data " << forward.regfile_data << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "forward.tag " << forward.tag << endl);

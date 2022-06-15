@@ -118,21 +118,23 @@ class Top: public sc_module {
         DMEM_BODY: while (true) {
             dmem_din = wb2dmem_ch.Pop();
             unsigned int addr = dmem_din.data_addr;
+
+            unsigned int random_stalls = (rand() % 8) + 1;
+            //std::cout << "wait=" << random_stalls << endl;
+            wait(random_stalls);
              
             if (dmem_din.read_en) {
 
                 dmem_dout.data_out = dmem[addr];
+                dmem2wb_ch.Push(dmem_dout);
             } else if (dmem_din.write_en) {
 
                 dmem[addr] = dmem_din.data_in;
                 dmem_dout.data_out = dmem_din.data_in;
             }
 
-            unsigned int random_stalls = (rand() % 8) + 1;
-            wait(random_stalls);
             // REMOVE
-            std::cout << "dmem[" << addr << "]=" << dmem[addr] << endl;
-            dmem2wb_ch.Push(dmem_dout);
+            //std::cout << "dmem[" << addr << "]=" << dmem[addr] << endl;
             wait();
         }
 

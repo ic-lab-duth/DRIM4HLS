@@ -66,6 +66,9 @@ SC_MODULE(decode) {
     bool forward_success_rs1;
     bool forward_success_rs2;
 
+    bool load_instruction;
+    sc_int < PC_LEN > load_pc;
+
     sc_bv < INSN_LEN > insn; // Contains full instruction fetched from IMEM. Used in decoding.
     sc_int < PC_LEN > pc; // Contains PC for the current instruction that is decoded   
     // NB. x0 is included in this regfile so it is not a real hardcoded 0
@@ -81,6 +84,7 @@ SC_MODULE(decode) {
     // Stalls processor and sends a nop operation to the execute stage
     sc_uint < OPCODE_SIZE > opcode;
 
+    int position;
     // Member variables (DECODE)
     de_in_t self_feed; // Contains branch and jump data		 
     imem_out_t imem_din; // Contains data from instruction memory
@@ -103,7 +107,7 @@ SC_MODULE(decode) {
 	sc_bv< 32 > addr_tmp;
 	sc_bv< 5 > zero_reg_addr;
      
-     bool flush_next;
+    bool flush_next;
 
     SC_CTOR(decode): clk("clk"),
     rst("rst"),
@@ -180,13 +184,13 @@ SC_MODULE(decode) {
 
             freeze = false;
             flush = false;
-	     flush_next = false;
+	        flush_next = false;
             freeze_tmp = false;
             flush_tmp = false;
 
             forward_success_rs1 = false;
             forward_success_rs2 = false;
-            
+            position = 0;
             insn = 0;
             branch = false;
             jump = false;
@@ -206,7 +210,7 @@ SC_MODULE(decode) {
             }else {
 				fwd.ldst = true;
 			}
-            
+
             if (!flush) {
 
                 fetch_in = fetch_din.Pop();
@@ -219,6 +223,10 @@ SC_MODULE(decode) {
 
             if (feed_from_wb.PopNB(feedinput_tmp)) {
 				feedinput = feedinput_tmp;
+
+                if (feedinput_tmp.pc == load_pc && load_instruction) {
+                    load_instruction = false;
+                }
             }else {
 				feedinput.regwrite = "0";
 			}
@@ -1082,7 +1090,8 @@ SC_MODULE(decode) {
             // *** END of control word generation.
         
             if ((sentinel[rs1_addr][0] == "1" && !forward_success_rs1) || // If RAW on RS1
-                (sentinel[rs2_addr][0] == "1" && !forward_success_rs2)) {
+                (sentinel[rs2_addr][0] == "1" && !forward_success_rs2) ||
+                (load_instruction)) {
                 freeze = true;
                 fetch_out.freeze = true;
                 flush = false;
@@ -1125,7 +1134,7 @@ SC_MODULE(decode) {
                     forward_success_rs2 = true;
                 }
             }
-            
+
             // *** Transform instruction into nop when freeze is active
             if (freeze || insn == "0" || flush_next) {
                 // Bubble.
@@ -1140,11 +1149,17 @@ SC_MODULE(decode) {
                 debug_dout_t.st = "NO_STORE";
                 #endif
             }
+
+            if (output.ld != NO_LOAD) {
+                load_instruction = true;
+                load_pc = pc;
+            }
             
             fetch_dout.Push(fetch_out);
             dout.Push(output);
 
             #ifndef __SYNTHESIS__
+            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "load_instruction=" << load_instruction << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "insn=" << insn << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "freeze= " << freeze << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "flush= " << flush << endl);

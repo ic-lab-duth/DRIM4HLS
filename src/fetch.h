@@ -62,7 +62,7 @@ SC_MODULE(fetch) {
 	
     bool freeze;
 	bool freeze_tmp;
-	
+	int position;
     SC_CTOR(fetch): imem_din("imem_din"),
     fetch_din("fetch_din"),
     dout("dout"),
@@ -95,6 +95,7 @@ SC_MODULE(fetch) {
             //  4, thus fetching instruction at address 0
             pc = -4;
             pc_tmp = -4;
+            position = 0;
             wait();
         }
         #pragma hls_pipeline_init_interval 1
@@ -109,7 +110,9 @@ SC_MODULE(fetch) {
                 freeze = fetch_in.freeze;
             }
             
-			
+            redirect = fetch_in.redirect;
+            redirect_addr = fetch_in.address.to_int();
+            freeze = fetch_in.freeze;
             // Mechanism for incrementing PC
             if ((redirect && redirect_addr != pc) || freeze) {
                 pc = ( sc_int < PC_LEN > ) redirect_addr;
