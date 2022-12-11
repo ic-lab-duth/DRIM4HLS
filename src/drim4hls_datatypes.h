@@ -23,15 +23,16 @@
 #include "globals.h"
 
 #include <mc_connections.h>
+#include <ac_int.h>
 
 struct de_in_t {
     //
     // Member declarations.
     //
-    sc_bv < 1 > jump;
-    sc_bv < 1 > branch;
-    sc_bv < PC_LEN > jump_address;
-    sc_bv < PC_LEN > branch_address;
+    ac_int < 1, false > jump;
+    ac_int < 1, false > branch;
+    ac_int < PC_LEN, false > jump_address;
+    ac_int < PC_LEN, false > branch_address;
 
     static const int width = 2 + 2 * PC_LEN;
 
@@ -39,10 +40,10 @@ struct de_in_t {
     // Default constructor.
     //
     de_in_t() {
-        jump = "0";
-        branch = "0";
-        jump_address = (sc_bv < PC_LEN > ) 0;
-        branch_address = (sc_bv < PC_LEN > ) 0;
+        jump = 0;
+        branch = 0;
+        jump_address = 0;
+        branch_address = 0;
     }
 
     //
@@ -127,15 +128,17 @@ struct fe_out_t {
     //
     // Member declarations.
     //
-    sc_uint < PC_LEN > pc;
+    ac_int < PC_LEN, false > pc;
+    ac_int < XLEN, false > instr_data;
 
-    static const int width = PC_LEN;
+    static const int width = PC_LEN + XLEN;
 
     //
     // Default constructor.
     //
     fe_out_t() {
-        pc = (sc_uint < PC_LEN > ) 0;
+        pc = 0;
+        instr_data = 0;
     }
 
     //
@@ -143,6 +146,7 @@ struct fe_out_t {
     //
     fe_out_t(const fe_out_t & other) {
         pc = other.pc;
+        instr_data = other.instr_data;
     }
 
     //
@@ -150,6 +154,8 @@ struct fe_out_t {
     //
     inline bool operator == (const fe_out_t & other) {
         if (!(pc == other.pc))
+            return false;
+        if (!(instr_data == other.instr_data))
             return false;
         return true;
     }
@@ -159,12 +165,14 @@ struct fe_out_t {
     //
     inline fe_out_t & operator = (const fe_out_t & other) {
         pc = other.pc;
+        instr_data = other.instr_data;
         return *this;
     }
 
     template < unsigned int Size >
         void Marshall(Marshaller < Size > & m) {
             m & pc;
+            m & instr_data;
         }
 
     //
@@ -172,6 +180,7 @@ struct fe_out_t {
     //
     inline friend void sc_trace(sc_trace_file * tf, const fe_out_t & object, const std::string & in_name) {
         sc_trace(tf, object.pc, in_name + std::string(".pc"));
+        sc_trace(tf, object.instr_data, in_name + std::string(".instr_data"));
     }
 
     //
@@ -182,6 +191,7 @@ struct fe_out_t {
 
         os << "(";
         os << object.pc;
+        os << object.instr_data;
         os << ")";
 
         return os;
@@ -201,18 +211,18 @@ struct de_out_t {
     //
     // Member declarations.
     //
-    sc_bv < 1 > regwrite;
-    sc_bv < 1 > memtoreg;
-    sc_bv < 3 > ld;
-    sc_bv < 2 > st;
-    sc_bv < ALUOP_SIZE > alu_op;
-    sc_bv < ALUSRC_SIZE > alu_src;
-    sc_bv < XLEN > rs1;
-    sc_bv < XLEN > rs2;
-    sc_bv < REG_ADDR > dest_reg;
-    sc_bv < PC_LEN > pc;
-    sc_bv < XLEN - 12 > imm_u;
-    sc_uint < TAG_WIDTH > tag;
+    ac_int < 1, false > regwrite;
+    ac_int < 1, false > memtoreg;
+    ac_int < 3, false > ld;
+    ac_int < 2, false > st;
+    ac_int < ALUOP_SIZE, false > alu_op;
+    ac_int < ALUSRC_SIZE, false > alu_src;
+    ac_int < XLEN, true > rs1;
+    ac_int < XLEN, true > rs2;
+    ac_int < REG_ADDR, false > dest_reg;
+    ac_int < PC_LEN, false > pc;
+    ac_int < XLEN - 12, false > imm_u;
+    ac_int < TAG_WIDTH, false > tag;
 
     static
     const int width = 1 + 1 + 3 + 2 + ALUOP_SIZE + ALUSRC_SIZE + 3 * XLEN - 12 + REG_ADDR + PC_LEN + TAG_WIDTH;
@@ -221,18 +231,18 @@ struct de_out_t {
     // Default constructor.
     //
     de_out_t() {
-        regwrite = "0";
-        memtoreg = "0";
+        regwrite = 0;
+        memtoreg = 0;
         ld = NO_LOAD;
         st = NO_STORE;
-        alu_op = (sc_bv < ALUOP_SIZE > ) 0;
-        alu_src = (sc_bv < ALUSRC_SIZE > ) 0;
-        rs1 = (sc_bv < XLEN > ) 0;
-        rs2 = (sc_bv < XLEN > ) 0;
-        dest_reg = (sc_bv < REG_ADDR > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
-        imm_u = (sc_bv < XLEN - 12 > ) 0;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
+        alu_op = 0;
+        alu_src = 0;
+        rs1 = 0;
+        rs2 = 0;
+        dest_reg = 0;
+        pc = 0;
+        imm_u = 0;
+        tag = 0;
     }
 
     //
@@ -377,15 +387,15 @@ struct exe_out_t // TODO: fix all sizes
     //
     // Member declarations.
     //
-    sc_bv < 3 > ld;
-    sc_bv < 2 > st;
-    sc_bv < 1 > memtoreg;
-    sc_bv < 1 > regwrite;
-    sc_bv < XLEN > alu_res;
-    sc_bv < DATA_SIZE > mem_datain;
-    sc_bv < REG_ADDR > dest_reg;
-    sc_uint < TAG_WIDTH > tag;
-    sc_bv < PC_LEN > pc;
+    ac_int < 3, false > ld;
+    ac_int < 2, false > st;
+    ac_int < 1, false > memtoreg;
+    ac_int < 1, false > regwrite;
+    ac_int < XLEN, false > alu_res;
+    ac_int < DATA_SIZE, true > mem_datain;
+    ac_int < REG_ADDR, false > dest_reg;
+    ac_int < TAG_WIDTH, false > tag;
+    ac_int < PC_LEN, false > pc;
 
     static const int width = 3 + 2 + 1 + 1 + XLEN + DATA_SIZE + REG_ADDR + TAG_WIDTH + PC_LEN;
 
@@ -395,13 +405,13 @@ struct exe_out_t // TODO: fix all sizes
     exe_out_t() {
         ld = NO_LOAD;
         st = NO_STORE;
-        memtoreg = "0";
-        regwrite = "0";
-        alu_res = (sc_bv < XLEN > ) 0;
-        mem_datain = (sc_bv < DATA_SIZE > ) 0;
-        dest_reg = (sc_bv < REG_ADDR > ) 0;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
+        memtoreg = 0;
+        regwrite = 0;
+        alu_res = 0;
+        mem_datain = 0;
+        dest_reg = 0;
+        tag = 0;
+        pc = 0;
     }
 
     //
@@ -522,22 +532,22 @@ struct mem_out_t {
     //
     // Member declarations.
     //
-    sc_bv < 1 > regwrite;
-    sc_bv < REG_ADDR > regfile_address;
-    sc_bv < XLEN > regfile_data;
-    sc_uint < TAG_WIDTH > tag;
-    sc_bv < PC_LEN > pc;
+    ac_int < 1, false > regwrite;
+    ac_int < REG_ADDR, false > regfile_address;
+    ac_int < XLEN, true > regfile_data;
+    ac_int < TAG_WIDTH, false > tag;
+    ac_int < PC_LEN, false > pc;
 
     static const int width = 1 + REG_ADDR + XLEN + TAG_WIDTH + PC_LEN;
     //
     // Default constructor.
     //
     mem_out_t() {
-        regwrite = "0";
-        regfile_address = (sc_bv < REG_ADDR > ) 0;
-        regfile_data = (sc_bv < XLEN > ) 0;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
+        regwrite = 0;
+        regfile_address = 0;
+        regfile_data = 0;
+        tag = 0;
+        pc = 0;
     }
 
     //
@@ -627,11 +637,11 @@ struct reg_forward_t {
     //
     // Member declarations.
     //
-    sc_bv < XLEN > regfile_data;
+    ac_int < XLEN, true > regfile_data;
     bool ldst;
     bool sync_fewb;
-    sc_uint < TAG_WIDTH > tag;
-    sc_bv < PC_LEN > pc;
+    ac_int < TAG_WIDTH, false > tag;
+    ac_int < PC_LEN, false > pc;
 
     static
     const int width = XLEN + 1 + 1 + TAG_WIDTH + PC_LEN;
@@ -639,11 +649,11 @@ struct reg_forward_t {
     // Default constructor.
     //
     reg_forward_t() {
-        regfile_data = (sc_bv < XLEN > ) 0;
+        regfile_data = 0;
         ldst = false;
         sync_fewb = false;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
+        tag = 0;
+        pc = 0;
     }
 
     //
@@ -738,14 +748,14 @@ struct imem_in_t {
     //
     // Member declarations.
     //
-    sc_int < XLEN > instr_addr;
+    ac_int < XLEN, false > instr_addr;
 
     static const int width = XLEN;
     //
     // Default constructor.
     //
     imem_in_t() {
-        instr_addr = (sc_int < XLEN > ) 0;
+        instr_addr = 0;
     }
 
     //
@@ -806,14 +816,14 @@ struct imem_out_t {
     //
     // Member declarations.
     //
-    sc_uint < XLEN > instr_data;
+    ac_int < ICACHE_LINE, false > instr_data;
 
-    static const int width = XLEN;
+    static const int width = ICACHE_LINE;
     //
     // Default constructor.
     //
     imem_out_t() {
-        instr_data = (sc_uint < XLEN > ) 0;
+        instr_data = 0;
     }
 
     //
@@ -875,19 +885,21 @@ struct dmem_in_t {
     //
     // Member declarations.
     //
-    sc_uint < XLEN > data_addr;
-    sc_uint < XLEN > data_in;
+    ac_int < XLEN, false > data_addr;
+    ac_int < XLEN, false > write_addr;
+    ac_int < DCACHE_LINE, false > data_in;
     bool read_en;
     bool write_en;
 
     static
-    const int width = 2 * XLEN + 2;
+    const int width = DCACHE_LINE + 2*XLEN + 2;
     //
     // Default constructor.
     //
     dmem_in_t() {
-        data_addr = (sc_uint < XLEN > ) 0;
-        data_in = (sc_uint < XLEN > ) 0;
+        data_addr = 0;
+        write_addr = 0;
+        data_in = 0;
         read_en = false;
         write_en = false;
     }
@@ -897,6 +909,7 @@ struct dmem_in_t {
     //
     dmem_in_t(const dmem_in_t & other) {
         data_addr = other.data_addr;
+        write_addr = other.write_addr;
         data_in = other.data_in;
         read_en = other.read_en;
         write_en = other.write_en;
@@ -907,6 +920,8 @@ struct dmem_in_t {
     //
     inline bool operator == (const dmem_in_t & other) {
         if (!(data_addr == other.data_addr))
+            return false;
+        if (!(write_addr == other.write_addr))
             return false;
         if (!(data_in == other.data_in))
             return false;
@@ -922,6 +937,7 @@ struct dmem_in_t {
     //
     inline dmem_in_t & operator = (const dmem_in_t & other) {
         data_addr = other.data_addr;
+        write_addr = other.write_addr;
         data_in = other.data_in;
         read_en = other.read_en;
         write_en = other.write_en;
@@ -931,6 +947,7 @@ struct dmem_in_t {
     template < unsigned int Size >
         void Marshall(Marshaller < Size > & m) {
             m & data_addr;
+            m & write_addr;
             m & data_in;
             m & read_en;
             m & write_en;
@@ -941,6 +958,7 @@ struct dmem_in_t {
     //
     inline friend void sc_trace(sc_trace_file * tf, const dmem_in_t & object, const std::string & in_name) {
         sc_trace(tf, object.data_addr, in_name + std::string(".data_addr"));
+        sc_trace(tf, object.data_addr, in_name + std::string(".write_addr"));
         sc_trace(tf, object.data_in, in_name + std::string(".data_in"));
         sc_trace(tf, object.read_en, in_name + std::string(".read_en"));
         sc_trace(tf, object.write_en, in_name + std::string(".write_en"));
@@ -953,6 +971,7 @@ struct dmem_in_t {
         const dmem_in_t & object) {
         os << "(";
         os << object.data_addr;
+        os << object.write_addr;
         os << object.data_in;
         os << object.read_en;
         os << object.write_en;
@@ -972,14 +991,14 @@ struct dmem_out_t {
     //
     // Member declarations.
     //
-    sc_uint < XLEN > data_out;
+    ac_int < DCACHE_LINE, false > data_out;
 
-    static const int width = XLEN;
+    static const int width = DCACHE_LINE;
     //
     // Default constructor.
     //
     dmem_out_t() {
-        data_out = (sc_uint < XLEN > ) 0;
+        data_out = 0;
     }
 
     //
@@ -1042,7 +1061,7 @@ struct fe_in_t {
     //
     bool freeze;
     bool redirect;
-    sc_bv < PC_LEN > address;
+    ac_int < PC_LEN, false > address;
 
     static const int width = 1 + 1 + PC_LEN;
     //
@@ -1051,7 +1070,7 @@ struct fe_in_t {
     fe_in_t() {
         freeze = false;
         redirect = false;
-        address = sc_bv < PC_LEN > (0);
+        address = 0;
     }
 
     //
@@ -1119,5 +1138,459 @@ struct fe_in_t {
 };
 #endif
 
+// ------------ icache_data_t
+#ifndef icache_data_t_SC_WRAPPER_TYPE
+#define icache_data_t_SC_WRAPPER_TYPE 1
+
+struct icache_data_t {
+    //
+    // Member declarations.
+    //
+    ac_int < ICACHE_LINE, false > data;
+
+    static const int width = ICACHE_LINE;
+    //
+    // Default constructor.
+    //
+    icache_data_t() {
+        //data = 0;
+    }
+
+    //
+    // Copy constructor.
+    //
+    icache_data_t(const icache_data_t &other) {
+        data = other.data;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const icache_data_t &other) {
+        if (!(data == other.data))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from stall_t.
+    //
+    inline icache_data_t & operator = (const icache_data_t &other) {
+        data = other.data;
+
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & data;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const icache_data_t & object, const std::string & in_name) {
+        sc_trace(tf, object.data, in_name + std::string(".data"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const icache_data_t & object) {
+        os << "(";
+        os << object.data;
+        os << ")";
+        return os;
+    }
+
+};
+#endif
+
+#ifndef icache_tag_t_SC_WRAPPER_TYPE
+#define icache_tag_t_SC_WRAPPER_TYPE 1
+
+struct icache_tag_t {
+    //
+    // Member declarations.
+    //
+    ac_int < ICACHE_TAG_WIDTH, false > tag;
+    bool valid;
+
+    static const int width = ICACHE_TAG_WIDTH + 2;
+    //
+    // Default constructor.
+    //
+    icache_tag_t() {
+        tag = 0;
+        valid = false;
+    }
+
+    //
+    // Copy constructor.
+    //
+    icache_tag_t(const icache_tag_t &other) {
+        tag = other.tag;
+        valid = other.valid;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const icache_tag_t &other) {
+        if (!(tag == other.tag))
+            return false;
+        if (!(valid == other.valid))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from stall_t.
+    //
+    inline icache_tag_t & operator = (const icache_tag_t &other) {
+        tag = other.tag;
+        valid = other.valid;
+
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & tag;
+            m & valid;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const icache_tag_t & object, const std::string & in_name) {
+        sc_trace(tf, object.tag, in_name + std::string(".tag"));
+        sc_trace(tf, object.valid, in_name + std::string(".valid"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const icache_tag_t & object) {
+        os << "(";
+        os << object.tag;
+        os << object.valid;
+        os << ")";
+        return os;
+    }
+};
+#endif
+
+// ------------ icache_out_t
+#ifndef icache_out_t_SC_WRAPPER_TYPE
+#define icache_out_t_SC_WRAPPER_TYPE 1
+
+struct icache_out_t {
+    //
+    // Member declarations.
+    //
+    ac_int < ICACHE_LINE, false > data;
+    bool hit;
+
+    static const int width = ICACHE_LINE + 1;
+    //
+    // Default constructor.
+    //
+    icache_out_t() {
+        data = 0;
+        hit = false;
+    }
+
+    //
+    // Copy constructor.
+    //
+    icache_out_t(const icache_out_t &other) {
+        data = other.data;
+        hit = other.hit;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const icache_out_t &other) {
+        if (!(data == other.data))
+            return false;
+        if (!(hit == other.hit))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from stall_t.
+    //
+    inline icache_out_t & operator = (const icache_out_t &other) {
+        data = other.data;
+        hit = other.hit;
+
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & data;
+            m & hit;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const icache_out_t & object, const std::string & in_name) {
+        sc_trace(tf, object.data, in_name + std::string(".data"));
+        sc_trace(tf, object.hit, in_name + std::string(".hit"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const icache_out_t & object) {
+        os << "(";
+        os << object.data;
+        os << object.hit;
+        os << ")";
+        return os;
+    }
+
+};
+#endif
+
+// ------------ dcache_data_t
+#ifndef dcache_data_t_SC_WRAPPER_TYPE
+#define dcache_data_t_SC_WRAPPER_TYPE 1
+
+struct dcache_data_t {
+    //
+    // Member declarations.
+    //
+    ac_int < DCACHE_LINE, false > data;
+
+    static const int width = DCACHE_LINE;
+    //
+    // Default constructor.
+    //
+    dcache_data_t() {
+        //data = 0;
+    }
+
+    //
+    // Copy constructor.
+    //
+    dcache_data_t(const dcache_data_t &other) {
+        data = other.data;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const dcache_data_t &other) {
+        if (!(data == other.data))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from stall_t.
+    //
+    inline dcache_data_t & operator = (const dcache_data_t &other) {
+        data = other.data;
+
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & data;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const dcache_data_t & object, const std::string & in_name) {
+        sc_trace(tf, object.data, in_name + std::string(".data"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const dcache_data_t & object) {
+        os << "(";
+        os << object.data;
+        os << ")";
+        return os;
+    }
+
+};
+#endif
+
+#ifndef dcache_tag_t_SC_WRAPPER_TYPE
+#define dcache_tag_t_SC_WRAPPER_TYPE 1
+
+struct dcache_tag_t {
+    //
+    // Member declarations.
+    //
+    ac_int < DCACHE_TAG_WIDTH, false > tag;
+    bool valid;
+    bool dirty;
+
+    static const int width = DCACHE_TAG_WIDTH + 2;
+    //
+    // Default constructor.
+    //
+    dcache_tag_t() {
+        tag = 0;
+        valid = false;
+        dirty = false;
+    }
+
+    //
+    // Copy constructor.
+    //
+    dcache_tag_t(const dcache_tag_t &other) {
+        tag = other.tag;
+        valid = other.valid;
+        dirty = other.dirty;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const dcache_tag_t &other) {
+        if (!(tag == other.tag))
+            return false;
+        if (!(valid == other.valid))
+            return false;
+        if (!(dirty == other.dirty))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from stall_t.
+    //
+    inline dcache_tag_t & operator = (const dcache_tag_t &other) {
+        tag = other.tag;
+        valid = other.valid;
+        dirty = other.dirty;
+
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & tag;
+            m & valid;
+            m & dirty;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const dcache_tag_t & object, const std::string & in_name) {
+        sc_trace(tf, object.tag, in_name + std::string(".tag"));
+        sc_trace(tf, object.valid, in_name + std::string(".valid"));
+        sc_trace(tf, object.dirty, in_name + std::string(".dirty"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const dcache_tag_t & object) {
+        os << "(";
+        os << object.tag;
+        os << object.valid;
+        os << object.dirty;
+        os << ")";
+        return os;
+    }
+};
+#endif
+
+// ------------ dcache_data_t
+#ifndef dcache_out_t_SC_WRAPPER_TYPE
+#define dcache_out_t_SC_WRAPPER_TYPE 1
+
+struct dcache_out_t {
+    //
+    // Member declarations.
+    //
+    ac_int < DCACHE_LINE, false > data;
+    bool hit;
+
+    static const int width = DCACHE_LINE + 1;
+    //
+    // Default constructor.
+    //
+    dcache_out_t() {
+        data = 0;
+        hit = false;
+    }
+
+    //
+    // Copy constructor.
+    //
+    dcache_out_t(const dcache_out_t &other) {
+        data = other.data;
+        hit = other.hit;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const dcache_out_t &other) {
+        if (!(data == other.data))
+            return false;
+        if (!(hit == other.hit))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from stall_t.
+    //
+    inline dcache_out_t & operator = (const dcache_out_t &other) {
+        data = other.data;
+        hit = other.hit;
+
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & data;
+            m & hit;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const dcache_out_t & object, const std::string & in_name) {
+        sc_trace(tf, object.data, in_name + std::string(".data"));
+        sc_trace(tf, object.hit, in_name + std::string(".hit"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const dcache_out_t & object) {
+        os << "(";
+        os << object.data;
+        os << object.hit;
+        os << ")";
+        return os;
+    }
+
+};
+#endif
 
 #endif // ------------ hl5_datatypes.h include guard

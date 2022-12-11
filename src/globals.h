@@ -317,4 +317,7 @@
 #define MINSTRET_I    9
 #define MHARTID_I     10
 
+#define CACHE_HIT true
+#define CACHE_MISS false
+
 #endif

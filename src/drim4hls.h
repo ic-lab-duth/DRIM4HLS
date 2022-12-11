@@ -28,7 +28,7 @@
 
 #include <mc_connections.h>
 
-#pragma hls_design_top
+#pragma hls_design top
 SC_MODULE(drim4hls) {
     public:
     // Declaration of clock and reset signals
@@ -51,7 +51,6 @@ SC_MODULE(drim4hls) {
     Connections::Combinational < fe_in_t > CCS_INIT_S1(de2fe_ch);
     Connections::Combinational < mem_out_t > CCS_INIT_S1(wb2de_ch); // Writeback loop
     Connections::Combinational < exe_out_t > CCS_INIT_S1(exe2mem_ch);
-    Connections::Combinational < imem_out_t > CCS_INIT_S1(fe2de_imem_ch);
 
     Connections::In < imem_out_t > CCS_INIT_S1(imem2de_data);
     Connections::Out < imem_in_t > CCS_INIT_S1(fe2imem_data);
@@ -89,7 +88,6 @@ SC_MODULE(drim4hls) {
         fe.clk(clk);
         fe.rst(rst);
         fe.dout(fe2de_ch);
-        fe.imem_de(fe2de_imem_ch);
         fe.imem_din(fe2imem_data);
         fe.imem_dout(imem2de_data);
         fe.fetch_din(de2fe_ch);
@@ -108,7 +106,6 @@ SC_MODULE(drim4hls) {
         dec.b_icount(b_icount);
         dec.m_icount(m_icount);
         dec.o_icount(o_icount);
-        dec.imem_out(fe2de_imem_ch);
 
         // EXE
         exe.clk(clk);

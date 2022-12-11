@@ -27,6 +27,7 @@
 #include "globals.h"
 
 #include <mc_connections.h>
+#include <ac_int.h>
 
 SC_MODULE(fetch) {
     public:
@@ -38,16 +39,15 @@ SC_MODULE(fetch) {
     Connections::In < imem_out_t > CCS_INIT_S1(imem_dout);
     Connections::Out < imem_in_t > CCS_INIT_S1(imem_din);
     Connections::Out < fe_out_t > CCS_INIT_S1(dout);
-    Connections::Out < imem_out_t > CCS_INIT_S1(imem_de);
 
     // Trap signals. TODO: not used. Left for future implementations.
     sc_signal < bool > CCS_INIT_S1(trap); //sc_out
-    sc_signal < sc_uint < LOG2_NUM_CAUSES > > CCS_INIT_S1(trap_cause); //sc_out
+    sc_signal < ac_int < LOG2_NUM_CAUSES, false > > CCS_INIT_S1(trap_cause); //sc_out
 
     // *** Internal variables
-    sc_int < PC_LEN > pc; // Init. to -4, then before first insn fetch it will be updated to 0.	 
-    sc_int < PC_LEN > imem_pc; // Used in fetching from instruction memory
-	sc_int < PC_LEN > pc_tmp; // Init. to -4, then before first insn fetch it will be updated to 0.	 
+    ac_int < PC_LEN, true > pc; // Init. to -4, then before first insn fetch it will be updated to 0.	 
+    ac_int < PC_LEN, false > imem_pc; // Used in fetching from instruction memory
+	ac_int < PC_LEN, false > pc_tmp; // Init. to -4, then before first insn fetch it will be updated to 0.	 
     // Custom datatypes used for retrieving and sending data through the channels
     imem_in_t imem_in; // Contains data for fetching from the instruction memory
     fe_out_t fe_out; // Contains data for the decode stage
@@ -57,17 +57,35 @@ SC_MODULE(fetch) {
     bool redirect;
     bool redirect_tmp;
     
-    sc_int < PC_LEN > redirect_addr;
-	sc_bv < PC_LEN > redirect_addr_tmp;
+    ac_int < PC_LEN, false > redirect_addr;
+	ac_int < PC_LEN, false > redirect_addr_tmp;
+	
+	ac_int < DATA_SIZE, false > mem_dout;
+    ac_int < ICACHE_LINE, false > imem_data;
+    ac_int < XLEN, false > imem_data_offset;
+    
+    ac_int < ICACHE_TAG_WIDTH + ICACHE_INDEX_WIDTH + 1, false > icache_buffer_addr[ICACHE_BUFFER_SIZE][ICACHE_WAYS];
+    ac_int < ICACHE_LINE, false > icache_buffer_instr[ICACHE_BUFFER_SIZE][ICACHE_WAYS];
+    
+    icache_data_t icache_data[ICACHE_ENTRIES][ICACHE_WAYS];
+    icache_tag_t icache_tags[ICACHE_ENTRIES][ICACHE_WAYS];
+    icache_out_t icache_out;
+    
+    icache_data_t cache_data[1][ICACHE_WAYS];
+    icache_tag_t cache_tag[1][ICACHE_WAYS];
+
+    ac_int < ICACHE_TAG_WIDTH, false > tag;
+    ac_int < ICACHE_INDEX_WIDTH, false > index;
+    ac_int < ICACHE_OFFSET_WIDTH + 1, false> offset;
+    
+    ac_int < ICACHE_TAG_WIDTH + ICACHE_INDEX_WIDTH, false> buffer_addr;
 	
     bool freeze;
-	bool freeze_tmp;
-	int position;
+	
     SC_CTOR(fetch): imem_din("imem_din"),
     fetch_din("fetch_din"),
     dout("dout"),
     imem_dout("imem_dout"),
-    imem_de("imem_de"),
     clk("clk"),
     rst("rst") {
         SC_THREAD(fetch_th);
@@ -82,9 +100,12 @@ SC_MODULE(fetch) {
             fetch_din.Reset();
             imem_din.Reset();
             imem_dout.Reset();
-            imem_de.Reset();
+            
+            tag = 0;
+            index= 0;
+            offset = 0;
 									
-            trap = "0";
+            trap = 0;
             trap_cause = NULL_CAUSE;
             imem_in.instr_addr = 0;
             
@@ -95,40 +116,118 @@ SC_MODULE(fetch) {
             //  4, thus fetching instruction at address 0
             pc = -4;
             pc_tmp = -4;
-            position = 0;
+            buffer_addr = 0;
+            
+            int n = 0;
+            int l = 0;
+            for (n = 0; n < ICACHE_BUFFER_SIZE; n++) {
+                for (l = 0; l < ICACHE_WAYS; l++) {             
+				    icache_buffer_addr[n][l] = 0;
+				    icache_buffer_instr[n][l] = 0;
+				}
+			}
+            
             wait();
         }
         #pragma hls_pipeline_init_interval 1
         #pragma pipeline_stall_mode flush
         FETCH_BODY: while (true) {
             //sc_assert(sc_time_stamp().to_double() < 1500000);
-
+            
             if (fetch_din.PopNB(fetch_in)) {
                 // Mechanism for incrementing PC
                 redirect = fetch_in.redirect;
-                redirect_addr = fetch_in.address.to_int();
+                redirect_addr = fetch_in.address;
                 freeze = fetch_in.freeze;
             }
-            
-            redirect = fetch_in.redirect;
-            redirect_addr = fetch_in.address.to_int();
-            freeze = fetch_in.freeze;
+
             // Mechanism for incrementing PC
             if ((redirect && redirect_addr != pc) || freeze) {
-                pc = ( sc_int < PC_LEN > ) redirect_addr;
+                pc = redirect_addr;
             } else if (!freeze) {
-                pc = sc_int < PC_LEN > (pc + 4);
+                pc = (pc + 4);
             }
 			
-            imem_in.instr_addr = ( sc_int< XLEN > ) pc;
+            //imem_in.instr_addr = pc;
 
             fe_out.pc = pc;
+            
+            unsigned int aligned_addr = pc >> 2;
+            imem_in.instr_addr = aligned_addr;
+            
+            ac_int < XLEN, false > addr = aligned_addr;
+            
+            tag = addr.slc<ICACHE_TAG_WIDTH>(ICACHE_INDEX_WIDTH + ICACHE_OFFSET_WIDTH);
+            index = addr.slc<ICACHE_INDEX_WIDTH>(ICACHE_OFFSET_WIDTH);        
+			if (ICACHE_OFFSET_WIDTH) {
+                offset = addr.slc<ICACHE_OFFSET_WIDTH>(0);
+            }
+            else {
+				offset = 0;
+			}
+			
+			buffer_addr.set_slc(0, index);
+			buffer_addr.set_slc(ICACHE_INDEX_WIDTH, tag);
+			
+			int j = 0;
+			int m = 0;
+			int k = ICACHE_BUFFER_SIZE - 1;
+			
+			for (k; k > 0; k = k - 1) {
+				for (m = 0; m < ICACHE_WAYS; m++) {
+					icache_buffer_addr[k][m] = icache_buffer_addr[k-1][m];
+					icache_buffer_instr[k][m] = icache_buffer_instr[k-1][m]; 
+				}                 
+			}
+			
+			icache_out = icache();
+			
+			for (m = 0; m < ICACHE_WAYS; m++) {                 
+				icache_buffer_instr[0][m] = cache_data[0][m].data;
+				icache_buffer_addr[0][m].set_slc(0, (ac_int <1, false>) cache_tag[0][m].valid);
+				icache_buffer_addr[0][m].set_slc(1, index);
+				icache_buffer_addr[0][m].set_slc(ICACHE_INDEX_WIDTH + 1, cache_tag[0][m].tag);  
+			}
+			
+            switch (icache_out.hit)
+            {
+				case CACHE_HIT:
+                    imem_data = icache_out.data;
+                    
+					for (j = 0; j < ICACHE_BUFFER_SIZE; j++) {
+						for (m = 0; m < ICACHE_WAYS; m++) {                 
+							if (icache_buffer_addr[j][m].slc<ICACHE_TAG_WIDTH + ICACHE_INDEX_WIDTH>(1) == buffer_addr && icache_buffer_addr[j][m].slc<1>(0) == 1) {
+								imem_data = icache_buffer_instr[j][m];
+							}
+						}
+					}
+                    
+                    imem_data_offset = imem_data.slc<DATA_WIDTH>(offset*DATA_WIDTH);
+                    
+                    fe_out.instr_data = imem_data_offset;
+                    break;
+                case CACHE_MISS:
+				                    
+                    imem_din.Push(imem_in);
 
-			imem_din.Push(imem_in);
-
-            imem_out = imem_dout.Pop();
-
-            imem_de.Push(imem_out);
+					imem_out = imem_dout.Pop();
+					
+                    imem_data = imem_out.instr_data;
+					imem_data_offset = imem_data.slc<DATA_WIDTH>(offset*DATA_WIDTH);
+					fe_out.instr_data = imem_data_offset;
+					
+					//cache_data[0][ICACHE_WAYS - 1].data = imem_data;
+					icache_buffer_addr[0][ICACHE_WAYS - 1].set_slc(0, (ac_int <1, false>) 1);
+					icache_buffer_addr[0][ICACHE_WAYS - 1].set_slc(1, buffer_addr);
+					icache_buffer_instr[0][ICACHE_WAYS - 1] = imem_data;
+                    
+                    break;
+                default:
+                    break;
+            }
+            
+            icache_write();
+			
             dout.Push(fe_out);
 			
 			#ifndef __SYNTHESIS__
@@ -139,6 +238,61 @@ SC_MODULE(fetch) {
 
         } // *** ENDOF while(true)
     } // *** ENDOF sc_cthread
+    
+    icache_out_t icache () {
+
+        icache_out_t iout;
+        icache_tag_t tmp_tag;
+        icache_data_t tmp_data;
+        iout.data = 0;
+        iout.hit = false;
+
+		int i = 0;
+        int j = 0;
+
+        for (i = 0; i < ICACHE_WAYS; i++) {
+            cache_tag[0][i] = icache_tags[index][i];
+            cache_data[0][i] = icache_data[index][i];
+
+            if ((tag == cache_tag[0][i].tag) && (cache_tag[0][i].valid)) {
+                              
+                tmp_data = cache_data[0][i];
+                tmp_tag = cache_tag[0][i];
+                iout.hit = true;
+                j = i;
+
+            }
+
+			if (iout.hit && i < j + 1) {
+                cache_data[0][i] = cache_data[0][i-1];
+                cache_tag[0][i] = cache_tag[0][i-1];
+			}
+
+		}
+
+        if (iout.hit) {
+			
+            cache_data[0][0] = tmp_data;
+            cache_tag[0][0] = tmp_tag;
+		}else {
+			tmp_data = cache_data[0][ICACHE_WAYS - 1];
+		}
+
+        iout.data = tmp_data.data;
+
+        return iout;
+    }
+    
+    void icache_write () {
+			
+        ac_int < ICACHE_INDEX_WIDTH, false > write_index = icache_buffer_addr[1][0].slc<ICACHE_INDEX_WIDTH>(1);
+        int i = 0;
+        for (i = 0; i < ICACHE_WAYS; i++) {                 
+            icache_data[write_index][i].data = icache_buffer_instr[1][i];
+            icache_tags[write_index][i].valid = icache_buffer_addr[1][i].slc<1>(0);
+            icache_tags[write_index][i].tag = icache_buffer_addr[1][i].slc<ICACHE_TAG_WIDTH>(1 + ICACHE_INDEX_WIDTH);
+        }
+    }
 };
 
 #endif
