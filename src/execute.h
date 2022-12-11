@@ -32,17 +32,17 @@
 #include "globals.h"
 
 #include <mc_connections.h>
-
+#include <ac_int.h>
 // Signed division quotient and remainder struct.
 struct div_res_t {
-    sc_int < XLEN > quotient;
-    sc_int < XLEN > remainder;
+    ac_int < XLEN, true > quotient;
+    ac_int < XLEN, true > remainder;
 };
 
 // Unsigned division quotient and remainder struct.
 struct u_div_res_t {
-    sc_uint < XLEN > quotient;
-    sc_uint < XLEN > remainder;
+    ac_int < XLEN, false > quotient;
+    ac_int < XLEN, false > remainder;
 };
 
 SC_MODULE(execute) {
@@ -84,10 +84,10 @@ SC_MODULE(execute) {
     dmem_in_t dmem_din;
     reg_forward_t forward;
 
-    sc_uint < XLEN > csr[CSR_NUM]; // Control and status registers.
+    ac_int < XLEN, false > csr[CSR_NUM]; // Control and status registers.
 
     bool freeze;
-
+    
     // Constructor
     SC_CTOR(execute): din("din"), dout("dout"), fwd_exe("fwd_exe"), clk("clk"), rst("rst") {
         SC_THREAD(execute_th);
@@ -95,20 +95,20 @@ SC_MODULE(execute) {
         async_reset_signal_is(rst, false);
     }
 
-    u_div_res_t udiv_func(sc_uint < XLEN > num, sc_uint < XLEN > den) {
-        sc_uint < XLEN > rem;
-        sc_uint < XLEN > quotient;
+    u_div_res_t udiv_func(ac_int < XLEN, false > num, ac_int < XLEN, false > den) {
+        ac_int < XLEN, false > rem;
+        ac_int < XLEN, false > quotient;
         u_div_res_t u_div_res;
 
         rem = 0;
         quotient = 0;
 
         DIVIDE_LOOP:
-            for (sc_int < 6 > i = 31; i >= 0; i--) {
+            for (ac_int < 6, false > i = 31; i >= 0; i--) {
                 // Break EXE stage protocol for DSE
 
-                const sc_uint < XLEN > mask = BIT(i);
-                const sc_uint < XLEN > lsb = (mask & num) >> i;
+                const ac_int < XLEN, false > mask = BIT(i);
+                const ac_int < XLEN, false > lsb = (mask & num) >> i;
 
                 rem = rem << 1;
                 rem = rem | lsb;
@@ -117,6 +117,7 @@ SC_MODULE(execute) {
                     rem -= den;
                     quotient = quotient | mask;
                 }
+                wait();
             }
 
         u_div_res.quotient = quotient;
@@ -125,7 +126,7 @@ SC_MODULE(execute) {
         return u_div_res;
     }
 
-    div_res_t div_func(sc_int < XLEN > num, sc_int < XLEN > den) {
+    div_res_t div_func(ac_int < XLEN, true > num, ac_int < XLEN, true > den) {
         bool num_neg;
         bool den_neg;
         div_res_t div_res;
@@ -139,9 +140,9 @@ SC_MODULE(execute) {
         if (den_neg)
             den = -den;
 
-        u_div_res = udiv_func((sc_uint < XLEN > ) num, (sc_uint < XLEN > ) den);
-        div_res.quotient = (sc_int < XLEN > ) u_div_res.quotient;
-        div_res.remainder = (sc_int < XLEN > ) u_div_res.remainder;
+        u_div_res = udiv_func((ac_int < XLEN, true > ) num, (ac_int < XLEN, true > ) den);
+        div_res.quotient = (ac_int < XLEN, true > ) u_div_res.quotient;
+        div_res.remainder = (ac_int < XLEN, true > ) u_div_res.remainder;
 
         if (num_neg ^ den_neg)
             div_res.quotient = -div_res.quotient;
@@ -165,7 +166,7 @@ SC_MODULE(execute) {
             csr[MHARTID_I] = 0x0; // Single thread (always 0)
             csr[MINSTRET_I] = 0x0; // Retired instructions
             csr[MCYCLE_I] = 0x0; // Cycle count (32-bits only for now)
-
+			
             wait();
         }
         
@@ -190,12 +191,13 @@ SC_MODULE(execute) {
             if (input.regwrite[0] == 0 &&
                 input.ld == NO_LOAD &&
                 input.st == NO_STORE &&
-                input.alu_op == (sc_bv < ALUOP_SIZE > ) ALUOP_NULL) {
+                input.alu_op == ALUOP_NULL) {
                 nop = true;
             }
             #ifdef MUL64
             // 64-bit temporary multiplication result, for upper 32 bit multiplications (MULH, MULHU, MULHSU).
-            int64_t tmp_mul_res = 0;
+            //int64_t tmp_mul_res = 0;
+            ac_int <64, false> tmp_mul_res = 0;
             #endif
             #ifdef DIV
             // Temporary division results.
@@ -210,41 +212,48 @@ SC_MODULE(execute) {
             #endif
             #ifdef CSR_LOGIC
             // Temporary CSR index
-            sc_uint < CSR_IDX_LEN > csr_index = 0;
+            ac_int < CSR_IDX_LEN, false > csr_index = 0;
             #endif
 
             // Sign extend the immediate operand for I-type instructions.
-            sc_bv < XLEN > tmp_sigext_imm_i = sc_bv < XLEN > (0);
-            if (input.imm_u[19] == "1") {
+            ac_int < XLEN, false > tmp_sigext_imm_i = 0;
+            if (input.imm_u[19] == 1) {
                 // Extend with 1s
-                tmp_sigext_imm_i = (sc_bv < 20 > (1048575), (sc_bv < 12 > ) input.imm_u.range(19, 8));
+                //tmp_sigext_imm_i = (sc_bv < 20 > (1048575), (sc_bv < 12 > ) input.imm_u.range(19, 8));
+                tmp_sigext_imm_i.set_slc(0, input.imm_u.slc<12>(8));
+                tmp_sigext_imm_i.set_slc(12, (ac_int < 20, false >) 1048575);
             } else {
                 // Extend with 0s
-                tmp_sigext_imm_i = (sc_bv < 20 > (0), (sc_bv < 12 > ) input.imm_u.range(19, 8));
+                //tmp_sigext_imm_i = (sc_bv < 20 > (0), (sc_bv < 12 > ) input.imm_u.range(19, 8));
+                tmp_sigext_imm_i.set_slc(0, input.imm_u.slc<12>(8));
             }
             // Zero-fill the immediate operand for U-type instructions.
-            sc_bv < XLEN > tmp_zerofill_imm_u = ((sc_bv < 20 > ) input.imm_u.range(19, 0), sc_bv < 12 > (0));
-
+            //sc_bv < XLEN > tmp_zerofill_imm_u = ((sc_bv < 20 > ) input.imm_u.range(19, 0), sc_bv < 12 > (0));
+			ac_int < XLEN, false > tmp_zerofill_imm_u;
+			tmp_zerofill_imm_u.set_slc(0, (ac_int < 12, false >)0); 
+			tmp_zerofill_imm_u.set_slc(12, input.imm_u.slc<20>(0));
             // ALU 2nd operand multiplexing based on ALUSRC signal.
-            sc_bv < XLEN > tmp_rs2 = (sc_bv < XLEN > ) 0;
+            ac_int < XLEN, false > tmp_rs2 = 0;
 
-            if (input.alu_src == (sc_bv < ALUSRC_SIZE > ) ALUSRC_RS2) {
+            if (input.alu_src == ALUSRC_RS2) {
                 tmp_rs2 = input.rs2;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_src = "ALUSRC_RS2";
                 #endif
 
-            } else if (input.alu_src == (sc_bv < ALUSRC_SIZE > ) ALUSRC_IMM_I) {
+            } else if (input.alu_src == ALUSRC_IMM_I) {
                 tmp_rs2 = tmp_sigext_imm_i;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_src = "ALUSRC_IMM_I";
                 #endif
 
-            } else if (input.alu_src == (sc_bv < ALUSRC_SIZE > ) ALUSRC_IMM_S) {
+            } else if (input.alu_src == ALUSRC_IMM_S) {
                 // reconstructs imm_s from imm_u and rd
-                sc_bv < 12 > imm_s = (sc_bv < 7 > (input.imm_u.range(19, 13)), input.dest_reg);
+                ac_int < 12, false > imm_s;
+                imm_s.set_slc(0, input.dest_reg);
+                imm_s.set_slc(5, input.imm_u.slc<7>(13));
                 tmp_rs2 = sign_extend_imm_s(imm_s);
 
                 #ifndef __SYNTHESIS__
@@ -261,9 +270,9 @@ SC_MODULE(execute) {
             }
 
             // ALU body
-            switch (sc_uint < ALUOP_SIZE > (input.alu_op)) {
+            switch (input.alu_op) {
             case ALUOP_ADD: // ADD, ADDI, SB, SH, SW, LB, LH, LW, LBU, LHU.
-                output.alu_res = sc_bv < XLEN > ((sc_int < XLEN > ) input.rs1 + (sc_int < XLEN > ) tmp_rs2);
+                output.alu_res = (ac_int<32, false>) input.rs1.to_int() + tmp_rs2.to_int();
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_ADD";
@@ -271,10 +280,10 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_SLT: // SLT, SLTI
-                if (sc_int < XLEN > (input.rs1) < sc_int < XLEN > (tmp_rs2))
-                    output.alu_res = (sc_bv < XLEN > ) 1;
+                if ((ac_int<32, true>) input.rs1 < (ac_int<32, true>) tmp_rs2)
+                    output.alu_res = 1;
                 else
-                    output.alu_res = (sc_bv < XLEN > ) 0;
+                    output.alu_res = 0;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SLT";
@@ -282,10 +291,10 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_SLTU: // SLTU, SLTIU
-                if (sc_uint < XLEN > (input.rs1) < sc_uint < XLEN > (tmp_rs2))
-                    output.alu_res = (sc_bv < XLEN > ) 1;
+                if ((ac_int<32, false>) input.rs1  < (ac_int<32, false>) tmp_rs2)
+                    output.alu_res = 1;
                 else
-                    output.alu_res = (sc_bv < XLEN > ) 0;
+                    output.alu_res = 0;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SLTU";
@@ -317,7 +326,7 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_SLL: // SLL
-                output.alu_res = sc_uint < XLEN > (input.rs1) << sc_uint < SHAMT > ((sc_bv < SHAMT > ) tmp_rs2.range(4, 0));
+                output.alu_res = (ac_int < XLEN, false >) input.rs1 << (ac_int < SHAMT, false >) tmp_rs2.slc<SHAMT>(0);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SLL";
@@ -325,7 +334,7 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_SRL: // SRL
-                output.alu_res = sc_uint < XLEN > (input.rs1) >> sc_uint < SHAMT > ((sc_bv < SHAMT > ) tmp_rs2.range(4, 0));
+                output.alu_res = (ac_int < XLEN, false >) input.rs1 >> (ac_int < SHAMT, false >) tmp_rs2.slc<SHAMT>(0);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SRL";
@@ -334,7 +343,7 @@ SC_MODULE(execute) {
                 break;
             case ALUOP_SRA: // SRA
                 // >> is arith right sh. for sc_int operand
-                output.alu_res = sc_int < XLEN > (input.rs1) >> sc_uint < SHAMT > ((sc_bv < SHAMT > ) tmp_rs2.range(4, 0));
+                output.alu_res = (ac_int < XLEN, true >) input.rs1 >> (ac_int < SHAMT, false >) tmp_rs2.slc<SHAMT>(0);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SRA";
@@ -342,7 +351,7 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_SUB: // SUB
-                output.alu_res = sc_bv < XLEN > ((sc_int < XLEN > ) input.rs1 - (sc_int < XLEN > ) tmp_rs2);
+                output.alu_res = (ac_int < XLEN, false >) ((ac_int < XLEN, true >) input.rs1 - (ac_int < XLEN, true >) tmp_rs2);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SUB";
@@ -350,7 +359,7 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_SLLI: // SLLI
-                output.alu_res = sc_uint < XLEN > (input.rs1) << sc_uint < SHAMT > ((sc_bv < SHAMT > ) tmp_rs2.range(24, 20));
+                output.alu_res = (ac_int < XLEN, false >) input.rs1 << (ac_int < SHAMT, false >) tmp_rs2.slc<SHAMT>(20);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SLLI";
@@ -358,7 +367,7 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_SRLI: // SRLI
-                output.alu_res = sc_uint < XLEN > (input.rs1) >> sc_uint < SHAMT > ((sc_bv < SHAMT > ) tmp_rs2.range(24, 20));
+                output.alu_res = (ac_int < XLEN, false >) input.rs1 >> (ac_int < SHAMT, false >) tmp_rs2.slc<SHAMT>(20);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SRLI";
@@ -367,7 +376,7 @@ SC_MODULE(execute) {
                 break;
             case ALUOP_SRAI: // SRAI
                 // >> is arith right sh. for sc_int operand
-                output.alu_res = sc_int < XLEN > (input.rs1) >> sc_uint < SHAMT > ((sc_bv < SHAMT > ) tmp_rs2.range(24, 20));
+                output.alu_res = (ac_int < XLEN, true >) input.rs1 >> (ac_int < SHAMT, false >) tmp_rs2.slc<SHAMT>(20);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_SRAI";
@@ -385,7 +394,7 @@ SC_MODULE(execute) {
                 break;
             case ALUOP_AUIPC: // AUIPC
                 // zerofill_imm_u + pc
-                output.alu_res = sc_bv < XLEN > ((sc_int < XLEN > ) tmp_rs2 + (sc_int < XLEN > ) input.pc);
+                output.alu_res = (ac_int < XLEN, true >) tmp_rs2 + (ac_int < XLEN, true >) input.pc;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_AUIPC";
@@ -394,7 +403,7 @@ SC_MODULE(execute) {
                 break;
             case ALUOP_JAL: // JAL, JALR
                 // link register update
-                output.alu_res = sc_bv < XLEN > ((sc_int < XLEN > ) input.pc + 4);
+                output.alu_res = (ac_int < XLEN, true >) input.pc + 4;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_JAL";
@@ -403,7 +412,7 @@ SC_MODULE(execute) {
                 break;
                 #ifdef MUL32
             case ALUOP_MUL: // MUL: signed * signed, return lower 32 bits
-                output.alu_res = (sc_int < XLEN > ) input.rs1 * (sc_int < XLEN > ) tmp_rs2;
+                output.alu_res = (ac_int < XLEN, true >) input.rs1 * (ac_int < XLEN, true >) tmp_rs2;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_MUL";
@@ -414,7 +423,7 @@ SC_MODULE(execute) {
                 #ifdef MUL64
             case ALUOP_MULH: // MULH: signed * signed, return upper 32 bits
                 tmp_mul_res = input.rs1.to_int() * tmp_rs2.to_int();
-                output.alu_res = sc_bv < XLEN * 2 > (sc_int < XLEN * 2 > (tmp_mul_res)).range((XLEN * 2) - 1, XLEN);
+                output.alu_res = (ac_int < XLEN * 2, false >) tmp_mul_res.slc<XLEN * 2>(XLEN);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_MULH";
@@ -422,8 +431,8 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_MULHSU: // MULHSU: signed * unsigned, return upper 32 bits
-                tmp_mul_res = input.rs1.to_int() * tmp_rs2.to_uint();
-                output.alu_res = sc_bv < XLEN * 2 > (sc_int < XLEN * 2 > (tmp_mul_res)).range((XLEN * 2) - 1, XLEN);
+                tmp_mul_res = input.rs1 * tmp_rs2.to_uint();
+                output.alu_res = tmp_mul_res.slc<XLEN * 2>(XLEN);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_MULHSU";
@@ -431,8 +440,8 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_MULHU: // MULHU: unsigned * unsigned, return upper 32 bits
-                tmp_mul_res = input.rs1.to_uint() * tmp_rs2.to_uint();
-                output.alu_res = sc_bv < XLEN * 2 > (sc_int < XLEN * 2 > (tmp_mul_res)).range((XLEN * 2) - 1, XLEN);
+                tmp_mul_res = input.rs1.to_int() * tmp_rs2.to_uint();
+                output.alu_res = tmp_mul_res.slc<XLEN * 2>(XLEN);
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_MULHU";
@@ -442,8 +451,8 @@ SC_MODULE(execute) {
                 #endif
                 #ifdef DIV
             case ALUOP_DIV: // DIV calls div_func
-                div_res = div_func((sc_int < XLEN > ) input.rs1, (sc_int < XLEN > ) tmp_rs2);
-                output.alu_res = (sc_bv < XLEN > ) div_res.quotient;
+                div_res = div_func((ac_int < XLEN, true >) input.rs1, (ac_int < XLEN, true >) tmp_rs2);
+                output.alu_res = div_res.quotient;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_DIV";
@@ -451,8 +460,8 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_DIVU: // DIVU calls udiv_func
-                u_div_res = udiv_func((sc_uint < XLEN > ) input.rs1, (sc_uint < XLEN > ) tmp_rs2);
-                output.alu_res = (sc_bv < XLEN > ) u_div_res.quotient;
+                u_div_res = udiv_func(input.rs1.to_uint(), tmp_rs2.to_uint());
+                output.alu_res = u_div_res.quotient;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_DIVU";
@@ -462,8 +471,8 @@ SC_MODULE(execute) {
                 #endif
                 #ifdef REM
             case ALUOP_REM: // REM calls div_func
-                div_res = div_func((sc_int < XLEN > ) input.rs1, (sc_int < XLEN > ) tmp_rs2);
-                output.alu_res = (sc_bv < XLEN > ) div_res.remainder;
+                div_res = div_func((ac_int < XLEN, true >) input.rs1, (ac_int < XLEN, true >) tmp_rs2);
+                output.alu_res = div_res.remainder;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_REM";
@@ -471,8 +480,8 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_REMU: // REMU calls udiv_func
-                u_div_res = udiv_func((sc_uint < XLEN > ) input.rs1, (sc_uint < XLEN > ) tmp_rs2);
-                output.alu_res = (sc_bv < XLEN > ) u_div_res.remainder;
+                u_div_res = udiv_func( input.rs1.to_uint(), tmp_rs2.to_uint());
+                output.alu_res = u_div_res.remainder;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_REMU";
@@ -485,9 +494,9 @@ SC_MODULE(execute) {
                 // This avoids having 12 more bits on the FEDEC-EXE Flex Channel.
                 // The same goes for imm_u[7:3] i.e. zimm for the 3 CSRxI instructions.
             case ALUOP_CSRRW: // CSRRW
-                csr_index = get_csr_index(input.imm_u.range(19, 8));
+                csr_index = get_csr_index(input.imm_u.slc<12>(8));
                 output.alu_res = csr[csr_index];
-                set_csr_value(csr_index, input.rs1, CSR_OP_WR, input.imm_u.range(19, 18));
+                set_csr_value(csr_index, input.rs1, CSR_OP_WR, input.imm_u.slc<2>(18));
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_CSRRW";
@@ -495,9 +504,9 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_CSRRS: // CSRRS
-                csr_index = get_csr_index(input.imm_u.range(19, 8));
+                csr_index = get_csr_index(input.imm_u.slc<12>(8));
                 output.alu_res = csr[csr_index];
-                set_csr_value(csr_index, input.rs1, CSR_OP_SET, input.imm_u.range(19, 18));
+                set_csr_value(csr_index, input.rs1, CSR_OP_SET, input.imm_u.slc<2>(18));
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_CSRRS";
@@ -505,9 +514,9 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_CSRRC: // CSRRC
-                csr_index = get_csr_index(input.imm_u.range(19, 8));
+                csr_index = get_csr_index(input.imm_u.slc<12>(8));
                 output.alu_res = csr[csr_index];
-                set_csr_value(csr_index, input.rs1, CSR_OP_CLR, input.imm_u.range(19, 18));
+                set_csr_value(csr_index, input.rs1, CSR_OP_CLR, input.imm_u.slc<2>(18));
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_CSRRC";
@@ -515,9 +524,9 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_CSRRWI: // CSRRWI
-                csr_index = get_csr_index(input.imm_u.range(19, 8));
+                csr_index = get_csr_index(input.imm_u.slc<12>(8));
                 output.alu_res = csr[csr_index];
-                set_csr_value(csr_index, input.imm_u.range(7, 3), CSR_OP_WR, input.imm_u.range(19, 18));
+                set_csr_value(csr_index, input.imm_u.slc<5>(3), CSR_OP_WR, input.imm_u.slc<2>(18));
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_CSRRWI";
@@ -525,9 +534,9 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_CSRRSI: // CSRRSI
-                csr_index = get_csr_index(input.imm_u.range(19, 8));
+                csr_index = get_csr_index(input.imm_u.slc<12>(8));
                 output.alu_res = csr[csr_index];
-                set_csr_value(csr_index, input.imm_u.range(7, 3), CSR_OP_SET, input.imm_u.range(19, 18));
+                set_csr_value(csr_index, input.imm_u.slc<5>(3), CSR_OP_SET, input.imm_u.slc<2>(18));
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_CSRRSI";
@@ -535,9 +544,9 @@ SC_MODULE(execute) {
 
                 break;
             case ALUOP_CSRRCI: // CSRRCI
-                csr_index = get_csr_index(input.imm_u.range(19, 8));
+                csr_index = get_csr_index(input.imm_u.slc<2>(8));
                 output.alu_res = csr[csr_index];
-                set_csr_value(csr_index, input.imm_u.range(7, 3), CSR_OP_CLR, input.imm_u.range(19, 18));
+                set_csr_value(csr_index, input.imm_u.slc<5>(3), CSR_OP_CLR, input.imm_u.slc<2>(18));
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_CSRRCI";
@@ -546,7 +555,7 @@ SC_MODULE(execute) {
                 break;
                 #endif
             default: // ALUOP_NULL (do nothing)
-                output.alu_res = (sc_bv < XLEN > ) 0;
+                output.alu_res = 0;
 
                 #ifndef __SYNTHESIS__
                 debug_exe_out_t.alu_op = "ALUOP_NULL";
@@ -554,7 +563,7 @@ SC_MODULE(execute) {
 
                 break;
             }
-
+			
             if ((input.ld != NO_LOAD || input.st != NO_STORE) && !nop) {
                 forward.ldst = true;
             } else {
@@ -577,7 +586,7 @@ SC_MODULE(execute) {
                csr[MINSTRET_I]++;
 
             // Put
-            if (!nop) {
+            if (!nop && input.pc != 10) {
                 dout.Push(output);
             }
 
@@ -602,22 +611,32 @@ SC_MODULE(execute) {
     /* Support functions */
 
     // Sign extend immS.
-    sc_bv < XLEN > sign_extend_imm_s(sc_bv < 12 > imm) {
-        if (imm[11] == "1") // Extend with 1s
-            return (sc_bv < 20 > (1048575), imm);
-        else // Extend with 0s
-            return (sc_bv < 20 > (0), imm);
+    ac_int < XLEN, false > sign_extend_imm_s(ac_int < 12, false > imm) {
+        ac_int <XLEN, false> imm_ext = 0;
+        if (imm[11] == 1) {
+			// Extend with 1s
+			imm_ext.set_slc(0, imm);
+			imm_ext.set_slc(12, (ac_int < 20, false >) 1048575);
+            return imm_ext;
+        }
+        else { 
+			// Extend with 0s
+			imm_ext.set_slc(0, imm);
+            return imm_ext;
+        }
     }
 
     #ifdef CSR_LOGIC
     // Zero extends the zimm immediate field of CSRRWI, CSRRSI, CSRRCI
-    sc_bv < XLEN > zero_ext_zimm(sc_bv < ZIMM_SIZE > zimm) {
-        return (sc_bv < 27 > (0), zimm);
+    ac_int < XLEN, false > zero_ext_zimm(ac_int < ZIMM_SIZE, false > zimm) {
+        ac_int <XLEN, false> zimm_ext = 0;
+        zimm_ext.set_slc(0, zimm);
+        return zimm_ext;
     }
 
     // Return index given a csr address.
-    sc_uint < CSR_IDX_LEN > get_csr_index(sc_bv < CSR_ADDR > csr_addr) {
-        switch ((sc_uint < CSR_ADDR > ) csr_addr) {
+    ac_int < CSR_IDX_LEN, false > get_csr_index(ac_int < CSR_ADDR, false > csr_addr) {
+        switch (csr_addr) {
         case USTATUS_A:
             return USTATUS_I;
         case MSTATUS_A:
@@ -649,17 +668,17 @@ SC_MODULE(execute) {
     // TODO: respect unwritable fields, see manual for each individual implemented CSR.
     // TODO: for now any bits of every register are fully readable/writeable.
     // TODO: This must be changed in future implementations.
-    void set_csr_value(sc_uint < CSR_IDX_LEN > csr_index, sc_bv < XLEN > rs1, sc_uint < LOG2_CSR_OP_NUM > operation, sc_bv < 2 > rw_permission) {
-        if (sc_uint< 2 > (rw_permission) != 3)
+    void set_csr_value(ac_int < CSR_IDX_LEN, false > csr_index, ac_int < XLEN, true> rs1, ac_int < LOG2_CSR_OP_NUM, false > operation, ac_int < 2, false > rw_permission) {
+        if (rw_permission != 3)
             switch (operation) {
             case CSR_OP_WR:
-                csr[csr_index] = rs1;
+                csr[csr_index] = rs1.to_uint();
                 break;
             case CSR_OP_SET:
-                csr[csr_index] |= (sc_uint < XLEN > ) rs1;
+                csr[csr_index] |= rs1.to_uint();
                 break;
             case CSR_OP_CLR:
-                csr[csr_index] &= ~((sc_uint < XLEN > ) rs1);
+                csr[csr_index] &= ~(rs1.to_uint());
                 break;
             default:
                 break;

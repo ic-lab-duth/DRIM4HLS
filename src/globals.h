@@ -317,4 +317,7 @@
 #define MINSTRET_I    9
 #define MHARTID_I     10
 
+#define DCACHE_HIT true
+#define DCACHE_MISS false
+
 #endif

@@ -27,6 +27,7 @@
 #include "globals.h"
 
 #include <mc_connections.h>
+#include <ac_int.h>
 
 SC_MODULE(fetch) {
     public:
@@ -42,12 +43,12 @@ SC_MODULE(fetch) {
 
     // Trap signals. TODO: not used. Left for future implementations.
     sc_signal < bool > CCS_INIT_S1(trap); //sc_out
-    sc_signal < sc_uint < LOG2_NUM_CAUSES > > CCS_INIT_S1(trap_cause); //sc_out
+    sc_signal < ac_int < LOG2_NUM_CAUSES, false > > CCS_INIT_S1(trap_cause); //sc_out
 
     // *** Internal variables
-    sc_int < PC_LEN > pc; // Init. to -4, then before first insn fetch it will be updated to 0.	 
-    sc_int < PC_LEN > imem_pc; // Used in fetching from instruction memory
-	sc_int < PC_LEN > pc_tmp; // Init. to -4, then before first insn fetch it will be updated to 0.	 
+    ac_int < PC_LEN, true > pc; // Init. to -4, then before first insn fetch it will be updated to 0.	 
+    ac_int < PC_LEN, false > imem_pc; // Used in fetching from instruction memory
+	ac_int < PC_LEN, false > pc_tmp; // Init. to -4, then before first insn fetch it will be updated to 0.	 
     // Custom datatypes used for retrieving and sending data through the channels
     imem_in_t imem_in; // Contains data for fetching from the instruction memory
     fe_out_t fe_out; // Contains data for the decode stage
@@ -57,8 +58,8 @@ SC_MODULE(fetch) {
     bool redirect;
     bool redirect_tmp;
     
-    sc_int < PC_LEN > redirect_addr;
-	sc_bv < PC_LEN > redirect_addr_tmp;
+    ac_int < PC_LEN, false > redirect_addr;
+	ac_int < PC_LEN, false > redirect_addr_tmp;
 	
     bool freeze;
 	bool freeze_tmp;
@@ -84,7 +85,7 @@ SC_MODULE(fetch) {
             imem_dout.Reset();
             imem_de.Reset();
 									
-            trap = "0";
+            trap = 0;
             trap_cause = NULL_CAUSE;
             imem_in.instr_addr = 0;
             
@@ -96,31 +97,29 @@ SC_MODULE(fetch) {
             pc = -4;
             pc_tmp = -4;
             position = 0;
+            
             wait();
         }
         #pragma hls_pipeline_init_interval 1
         #pragma pipeline_stall_mode flush
         FETCH_BODY: while (true) {
             //sc_assert(sc_time_stamp().to_double() < 1500000);
-
+            
             if (fetch_din.PopNB(fetch_in)) {
                 // Mechanism for incrementing PC
                 redirect = fetch_in.redirect;
-                redirect_addr = fetch_in.address.to_int();
+                redirect_addr = fetch_in.address;
                 freeze = fetch_in.freeze;
             }
-            
-            redirect = fetch_in.redirect;
-            redirect_addr = fetch_in.address.to_int();
-            freeze = fetch_in.freeze;
+
             // Mechanism for incrementing PC
             if ((redirect && redirect_addr != pc) || freeze) {
-                pc = ( sc_int < PC_LEN > ) redirect_addr;
+                pc = redirect_addr;
             } else if (!freeze) {
-                pc = sc_int < PC_LEN > (pc + 4);
+                pc = (pc + 4);
             }
 			
-            imem_in.instr_addr = ( sc_int< XLEN > ) pc;
+            imem_in.instr_addr = pc;
 
             fe_out.pc = pc;
 

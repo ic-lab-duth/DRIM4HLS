@@ -28,7 +28,7 @@
 
 #include <mc_connections.h>
 
-#pragma hls_design_top
+#pragma hls_design top
 SC_MODULE(drim4hls) {
     public:
     // Declaration of clock and reset signals

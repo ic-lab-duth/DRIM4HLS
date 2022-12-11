@@ -25,9 +25,26 @@
 #define ICACHE_SIZE 51200
 #define DCACHE_SIZE 51200
 
+#define DATA_WIDTH 32 
+#define ADDR_WIDTH 32
 #define TAG_WIDTH 4
 #define SENTINEL_INIT (1 << (TAG_WIDTH - 1))
 #define FWD_ENABLE
+
+// Cache size
+#define DCACHE_WAYS 2 // Number of ways
+#define DCACHE_ENTRIES 32 // Number of blocks per way
+#define BLOCK_WIDTH 64 // Number of bits per block
+
+// ( (int) log2( DCACHE_ENTRIES ) )
+#define DCACHE_INDEX_WIDTH 5
+// ( (int) log2( BLOCK_WIDTH / DATA_WIDTH) )
+#define DCACHE_OFFSET_WIDTH 1
+// ( ADDR_WIDTH - DCACHE_INDEX_WIDTH - DCACHE_OFFSET_WIDTH )
+#define DCACHE_TAG_WIDTH 26
+
+#define DCACHE_DATA_SIZE ( DCACHE_WAYS * BLOCK_WIDTH )
+#define DCACHE_TAGS_SIZE ( DCACHE_WAYS * DCACHE_TAG_WIDTH + 2 * DCACHE_WAYS) // Contais the tags and the valid/dirty bits
 
 // Dbg directives.
 
