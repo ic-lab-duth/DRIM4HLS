@@ -66,7 +66,7 @@ SC_MODULE(writeback) {
     mem_out_t output;
 
     ac_int < DATA_SIZE, false > mem_dout;
-    ac_int < DCACHE_LINE, false > dmem_data;
+    ac_int < BLOCK_WIDTH, false > dmem_data;
     ac_int < XLEN, false > dmem_data_offset;
     
     dcache_data_t dcache_data[DCACHE_ENTRIES][DCACHE_WAYS];
@@ -79,9 +79,12 @@ SC_MODULE(writeback) {
     ac_int < DCACHE_TAG_WIDTH, false > tag;
     ac_int < DCACHE_INDEX_WIDTH, false > index;
     ac_int < DCACHE_OFFSET_WIDTH + 1, false> offset;
-    
+        
+    sc_out < ac_int <32, false> > count_miss;
+    sc_out < ac_int <32, false> > count_hit;
+    ac_int < 32, false > misses;
+    ac_int < 32, false> hits;
     bool freeze;
-    bool freeze_write;
     // Constructor
     SC_CTOR(writeback): din("din"), dout("dout"), dmem_in("dmem_in"), dmem_out("dmem_out"), clk("clk"), rst("rst") {
         SC_THREAD(writeback_th);
@@ -113,9 +116,13 @@ SC_MODULE(writeback) {
             tag = 0;
             index = 0;
             offset = 0;
-
+            
+			count_miss.write(0);
+			count_hit.write(0);
+			
+			misses = 0;
+			hits = 0;
 			freeze = false;
-			freeze_write = false;
         }
 
         #pragma hls_pipeline_init_interval 1
@@ -188,11 +195,13 @@ SC_MODULE(writeback) {
 
                 switch (dcache_out.hit)
                 {
-                case CACHE_HIT:
+                case DCACHE_HIT:
+                    hits++;
                     dmem_data = dcache_out.data;
                     dmem_data_offset = dmem_data.slc<DATA_WIDTH>(offset*DATA_WIDTH);
                     
                     if (cache_tag[0][0].dirty && input.st != NO_STORE && cache_tag[0][0].tag != tag) {
+						misses++;
                         dmem_dout.write_en = true;
                         dmem_dout.data_in = dcache_out.data;
                         if (DCACHE_OFFSET_WIDTH) {
@@ -205,9 +214,10 @@ SC_MODULE(writeback) {
                     }
 
                     break;
-                case CACHE_MISS:
+                case DCACHE_MISS:
 				
                     dmem_dout.read_en = true;
+                    misses++;
                     if (cache_tag[0][DCACHE_WAYS - 1].dirty && cache_tag[0][DCACHE_WAYS - 1].tag != tag) {
                         dmem_dout.write_en = true;
                         dmem_dout.data_in = dcache_out.data;
@@ -356,7 +366,7 @@ SC_MODULE(writeback) {
             
             bool ld_st_write = (input.st != NO_STORE) ? false : true;
 
-			if ((input.st != NO_STORE || input.ld != NO_LOAD) && !freeze_write) {
+			if ((input.st != NO_STORE || input.ld != NO_LOAD)) {
 				dcache_write(ld_st_write, dcache_out.hit);
 			}
 			
@@ -369,9 +379,11 @@ SC_MODULE(writeback) {
             output.tag = input.tag;
             output.pc = input.pc;
 
+
+			count_miss.write(misses);
+			count_hit.write(hits);
             // Put
             freeze = false;
-            freeze_write = false;
 		    dout.Push(output);
             #ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "load= " << writeback_out_t.load << endl);
@@ -462,11 +474,14 @@ SC_MODULE(writeback) {
 
             }
 
-			if (dout.hit && i < j + 1) {
-                cache_data[0][i] = cache_data[0][i-1];
-                cache_tag[0][i] = cache_tag[0][i-1];
+		}
+		
+		for (i = DCACHE_WAYS - 1; i > 0; i--) {
+			if (dout.hit && i <= j) {
+				cache_data[0][i] = cache_data[0][i-1];
+				cache_tag[0][i] = cache_tag[0][i-1];
 			}
-
+				
 		}
 
         if (dout.hit) {
@@ -483,9 +498,7 @@ SC_MODULE(writeback) {
     }
     
     void dcache_write (bool load, bool hit) {
-		
-		freeze_write = true;
-		
+				
 		unsigned int bank = 0;
         if (!hit) {
             bank = DCACHE_WAYS - 1;

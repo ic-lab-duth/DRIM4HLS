@@ -1,0 +1,81 @@
+
+custom.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00002537          	lui	a0,0x2
+   4:	71050513          	addi	a0,a0,1808 # 2710 <custom+0x26f8>
+   8:	00050113          	mv	sp,a0
+   c:	008000ef          	jal	ra,14 <notmain>
+
+00000010 <hang>:
+  10:	0000006f          	j	10 <hang>
+
+00000014 <notmain>:
+  14:	0040006f          	j	18 <custom>
+
+00000018 <custom>:
+  18:	00000093          	li	ra,0
+  1c:	00400113          	li	sp,4
+  20:	00800193          	li	gp,8
+  24:	01000213          	li	tp,16
+  28:	40000293          	li	t0,1024
+  2c:	0020c463          	blt	ra,sp,34 <custom+0x1c>
+  30:	ff3ff06f          	j	22 <custom+0xa>
+  34:	00418313          	addi	t1,gp,4
+  38:	00418313          	addi	t1,gp,4
+  3c:	00418313          	addi	t1,gp,4
+  40:	00418313          	addi	t1,gp,4
+  44:	00418313          	addi	t1,gp,4
+  48:	00418313          	addi	t1,gp,4
+  4c:	00418313          	addi	t1,gp,4
+  50:	00418313          	addi	t1,gp,4
+  54:	00418313          	addi	t1,gp,4
+  58:	00418313          	addi	t1,gp,4
+  5c:	00418313          	addi	t1,gp,4
+  60:	00418313          	addi	t1,gp,4
+  64:	00418313          	addi	t1,gp,4
+  68:	00418313          	addi	t1,gp,4
+  6c:	00418313          	addi	t1,gp,4
+  70:	00418313          	addi	t1,gp,4
+  74:	00418393          	addi	t2,gp,4
+  78:	00418393          	addi	t2,gp,4
+  7c:	00418393          	addi	t2,gp,4
+  80:	00418393          	addi	t2,gp,4
+  84:	00418393          	addi	t2,gp,4
+  88:	00418393          	addi	t2,gp,4
+  8c:	00418393          	addi	t2,gp,4
+  90:	00418393          	addi	t2,gp,4
+  94:	00418393          	addi	t2,gp,4
+  98:	00418393          	addi	t2,gp,4
+  9c:	00418393          	addi	t2,gp,4
+  a0:	00418393          	addi	t2,gp,4
+  a4:	00418393          	addi	t2,gp,4
+  a8:	00418393          	addi	t2,gp,4
+  ac:	00418393          	addi	t2,gp,4
+  b0:	00418393          	addi	t2,gp,4
+  b4:	00418413          	addi	s0,gp,4
+  b8:	00418413          	addi	s0,gp,4
+  bc:	00418413          	addi	s0,gp,4
+  c0:	00418413          	addi	s0,gp,4
+  c4:	00418413          	addi	s0,gp,4
+  c8:	00418413          	addi	s0,gp,4
+  cc:	00418413          	addi	s0,gp,4
+  d0:	00418413          	addi	s0,gp,4
+  d4:	00418413          	addi	s0,gp,4
+  d8:	00418413          	addi	s0,gp,4
+  dc:	00418413          	addi	s0,gp,4
+  e0:	00418413          	addi	s0,gp,4
+  e4:	00418413          	addi	s0,gp,4
+  e8:	00418413          	addi	s0,gp,4
+  ec:	00418413          	addi	s0,gp,4
+  f0:	00418413          	addi	s0,gp,4
+  f4:	00418493          	addi	s1,gp,4
+  f8:	00418493          	addi	s1,gp,4
+  fc:	00418493          	addi	s1,gp,4
+ 100:	00418493          	addi	s1,gp,4
+ 104:	0042c463          	blt	t0,tp,10c <custom+0xf4>
+ 108:	f21ff06f          	j	28 <custom+0x10>
+ 10c:	f0dff06f          	j	18 <custom>

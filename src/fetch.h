@@ -79,9 +79,10 @@ SC_MODULE(fetch) {
     ac_int < ICACHE_OFFSET_WIDTH + 1, false> offset;
     
     ac_int < ICACHE_TAG_WIDTH + ICACHE_INDEX_WIDTH, false> buffer_addr;
-	
+
     bool freeze;
-	
+	bool hit_buffer;
+		
     SC_CTOR(fetch): imem_din("imem_din"),
     fetch_din("fetch_din"),
     dout("dout"),
@@ -112,6 +113,7 @@ SC_MODULE(fetch) {
             redirect_addr = 0;
 			freeze = false;
 			redirect = false;
+			hit_buffer = false;
             //  Init. pc to START_ADDRESS - 4 as on first fetch it will be incremented by
             //  4, thus fetching instruction at address 0
             pc = -4;
@@ -149,7 +151,7 @@ SC_MODULE(fetch) {
             }
 			
             //imem_in.instr_addr = pc;
-
+			hit_buffer = false;
             fe_out.pc = pc;
             
             unsigned int aligned_addr = pc >> 2;
@@ -169,8 +171,8 @@ SC_MODULE(fetch) {
 			buffer_addr.set_slc(0, index);
 			buffer_addr.set_slc(ICACHE_INDEX_WIDTH, tag);
 			
-			int j = 0;
 			int m = 0;
+			int n = 0;
 			int k = ICACHE_BUFFER_SIZE - 1;
 			
 			for (k; k > 0; k = k - 1) {
@@ -189,18 +191,22 @@ SC_MODULE(fetch) {
 				icache_buffer_addr[0][m].set_slc(ICACHE_INDEX_WIDTH + 1, cache_tag[0][m].tag);  
 			}
 			
+			if (!icache_out.hit) {
+				for (n = 0; n < ICACHE_BUFFER_SIZE; n++) {
+					for (m = 0; m < ICACHE_WAYS; m++) {                 
+						if (icache_buffer_addr[n][m].slc<ICACHE_TAG_WIDTH + ICACHE_INDEX_WIDTH>(1) == buffer_addr && icache_buffer_addr[n][m].slc<1>(0) == 1) {
+							icache_out.data = icache_buffer_instr[n][m];
+							icache_out.hit = true;
+							hit_buffer = true;
+						}
+					}
+				}
+			}
+			
             switch (icache_out.hit)
             {
 				case CACHE_HIT:
                     imem_data = icache_out.data;
-                    
-					for (j = 0; j < ICACHE_BUFFER_SIZE; j++) {
-						for (m = 0; m < ICACHE_WAYS; m++) {                 
-							if (icache_buffer_addr[j][m].slc<ICACHE_TAG_WIDTH + ICACHE_INDEX_WIDTH>(1) == buffer_addr && icache_buffer_addr[j][m].slc<1>(0) == 1) {
-								imem_data = icache_buffer_instr[j][m];
-							}
-						}
-					}
                     
                     imem_data_offset = imem_data.slc<DATA_WIDTH>(offset*DATA_WIDTH);
                     
@@ -216,7 +222,6 @@ SC_MODULE(fetch) {
 					imem_data_offset = imem_data.slc<DATA_WIDTH>(offset*DATA_WIDTH);
 					fe_out.instr_data = imem_data_offset;
 					
-					//cache_data[0][ICACHE_WAYS - 1].data = imem_data;
 					icache_buffer_addr[0][ICACHE_WAYS - 1].set_slc(0, (ac_int <1, false>) 1);
 					icache_buffer_addr[0][ICACHE_WAYS - 1].set_slc(1, buffer_addr);
 					icache_buffer_instr[0][ICACHE_WAYS - 1] = imem_data;
@@ -226,7 +231,7 @@ SC_MODULE(fetch) {
                     break;
             }
             
-            icache_write();
+			icache_write();
 			
             dout.Push(fe_out);
 			
@@ -263,11 +268,14 @@ SC_MODULE(fetch) {
 
             }
 
-			if (iout.hit && i < j + 1) {
-                cache_data[0][i] = cache_data[0][i-1];
-                cache_tag[0][i] = cache_tag[0][i-1];
+		}
+		
+		for (i = ICACHE_WAYS - 1; i > 0; i--) {
+			if (iout.hit && i <= j) {
+				cache_data[0][i] = cache_data[0][i-1];
+				cache_tag[0][i] = cache_tag[0][i-1];
 			}
-
+				
 		}
 
         if (iout.hit) {
@@ -288,10 +296,17 @@ SC_MODULE(fetch) {
         ac_int < ICACHE_INDEX_WIDTH, false > write_index = icache_buffer_addr[1][0].slc<ICACHE_INDEX_WIDTH>(1);
         int i = 0;
         for (i = 0; i < ICACHE_WAYS; i++) {                 
-            icache_data[write_index][i].data = icache_buffer_instr[1][i];
-            icache_tags[write_index][i].valid = icache_buffer_addr[1][i].slc<1>(0);
-            icache_tags[write_index][i].tag = icache_buffer_addr[1][i].slc<ICACHE_TAG_WIDTH>(1 + ICACHE_INDEX_WIDTH);
+
+            if (hit_buffer) {
+				icache_buffer_instr[0][i] = icache_buffer_instr[1][i];
+				icache_buffer_addr[0][i] = icache_buffer_addr[1][i];
+			}
+				icache_data[write_index][i].data = icache_buffer_instr[1][i];
+				icache_tags[write_index][i].valid = icache_buffer_addr[1][i].slc<1>(0);
+				icache_tags[write_index][i].tag = icache_buffer_addr[1][i].slc<ICACHE_TAG_WIDTH>(1 + ICACHE_INDEX_WIDTH);
         }
+                      
+
     }
 };
 
