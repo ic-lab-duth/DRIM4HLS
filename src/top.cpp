@@ -239,7 +239,7 @@ int sc_main(int argc, char * argv[]) {
 
     //std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS/examples/insertion_sort/notmain.txt";
+    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS_AC_WORKING_dcache_nway_WORKING_CLEAN/examples/fibonacci/fibonacci.txt";
 
     Top top("top", testing_program);
     sc_start();
