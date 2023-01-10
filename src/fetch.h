@@ -73,16 +73,19 @@ SC_MODULE(fetch) {
     
     icache_data_t cache_data[1][ICACHE_WAYS];
     icache_tag_t cache_tag[1][ICACHE_WAYS];
+    
+    btb_data_t btb_data[BTB_ENTRIES];
+    btb_out_t btb_out;
 
     ac_int < ICACHE_TAG_WIDTH, false > tag;
     ac_int < ICACHE_INDEX_WIDTH, false > index;
     ac_int < ICACHE_OFFSET_WIDTH + 1, false> offset;
     
     ac_int < ICACHE_TAG_WIDTH + ICACHE_INDEX_WIDTH, false> buffer_addr;
-
+	
     bool freeze;
-	bool hit_buffer;
-		
+    bool hit_buffer;
+	
     SC_CTOR(fetch): imem_din("imem_din"),
     fetch_din("fetch_din"),
     dout("dout"),
@@ -113,7 +116,6 @@ SC_MODULE(fetch) {
             redirect_addr = 0;
 			freeze = false;
 			redirect = false;
-			hit_buffer = false;
             //  Init. pc to START_ADDRESS - 4 as on first fetch it will be incremented by
             //  4, thus fetching instruction at address 0
             pc = -4;
@@ -147,11 +149,12 @@ SC_MODULE(fetch) {
             if ((redirect && redirect_addr != pc) || freeze) {
                 pc = redirect_addr;
             } else if (!freeze) {
-                pc = (pc + 4);
+                pc = (btb_out.btb_valid) ? btb_out.bta : (ac_int < PC_LEN, false >)(pc + 4);
             }
+            			
+			btb();
 			
-            //imem_in.instr_addr = pc;
-			hit_buffer = false;
+            hit_buffer = false;
             fe_out.pc = pc;
             
             unsigned int aligned_addr = pc >> 2;
@@ -232,7 +235,7 @@ SC_MODULE(fetch) {
             }
             
 			icache_write();
-			
+    
             dout.Push(fe_out);
 			
 			#ifndef __SYNTHESIS__
@@ -307,6 +310,38 @@ SC_MODULE(fetch) {
         }
                       
 
+    }
+    
+    void btb () {
+        ac_int < PC_LEN, false > update_pc = fetch_in.pc;
+		ac_int < BTB_INDEX_WIDTH, false > index = update_pc.slc<BTB_INDEX_WIDTH>(0);
+		ac_int < BTB_TAG_WIDTH, false > tag = update_pc.slc<BTB_TAG_WIDTH>(BTB_INDEX_WIDTH);
+		
+		btb_data_t data = btb_data[index];
+        //check if tag or branch target address differ in branch target buffer
+        if (fetch_in.btb_update) {
+            if(tag != data.tag || fetch_in.bta != data.bta) {
+                btb_data[index].tag = tag;
+                btb_data[index].bta = fetch_in.bta;
+                btb_data[index].prediction_data = WEAK_NON_TAKEN;
+                
+            }else if (fetch_in.branch_taken && btb_data[index].prediction_data < STRONG_TAKEN){
+                btb_data[index].prediction_data = btb_data[index].prediction_data + 1;
+            }else if (!fetch_in.branch_taken && btb_data[index].prediction_data > 0) {
+                btb_data[index].prediction_data = btb_data[index].prediction_data - 1;
+            }
+        }
+        
+        ac_int < BTB_INDEX_WIDTH, false > next_index = pc.slc<BTB_INDEX_WIDTH>(0);
+		ac_int < BTB_TAG_WIDTH, false > next_tag = pc.slc<BTB_TAG_WIDTH>(BTB_INDEX_WIDTH);
+        
+        if(next_tag == btb_data[next_index].tag && btb_data[next_index].prediction_data > WEAK_NON_TAKEN) {
+            btb_out.bta = btb_data[next_index].bta;
+            btb_out.btb_valid = true;
+        }
+        else {
+            btb_out.btb_valid = false;
+        }
     }
 };
 

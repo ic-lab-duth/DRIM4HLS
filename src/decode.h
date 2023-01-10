@@ -101,7 +101,6 @@ SC_MODULE(decode) {
     unsigned int imem_data; // Contains instruction data
    
 	bool freeze_tmp;
-	bool flush_tmp;
 	ac_int< 32, false > addr_tmp;
 	ac_int< 5, false > zero_reg_addr;
      
@@ -183,7 +182,6 @@ SC_MODULE(decode) {
             flush = false;
 	        flush_next = false;
             freeze_tmp = false;
-            flush_tmp = false;
 
             forward_success_rs1 = false;
             forward_success_rs2 = false;
@@ -195,7 +193,6 @@ SC_MODULE(decode) {
             load_instruction = false;
             load_pc = -4;
             new_instr = false;
-			
             wait();
         }
         
@@ -263,6 +260,7 @@ SC_MODULE(decode) {
             #endif
 
             output.pc = pc;
+            fetch_out.pc = pc;
             // Increment some instruction counters
             //opcode = sc_uint < OPCODE_SIZE > (sc_bv < OPCODE_SIZE > (insn.range(6, 2)));
 			opcode = insn.slc<OPCODE_SIZE>(2);
@@ -288,7 +286,6 @@ SC_MODULE(decode) {
             fetch_out.redirect = false;
             
             freeze_tmp = false;
-            flush_tmp = false;
 
            if (insn == 0x0000006f) {
                 // jump to yourself (end of program).
@@ -359,10 +356,16 @@ SC_MODULE(decode) {
 			immbranch_tmp[12] = insn[31];
 
             self_feed.branch_address = sign_extend_branch(immbranch_tmp + pc);
+            
             // -- Jump.
+            fetch_out.branch_taken = false;
+            fetch_out.btb_update = false;
             if (insn.slc<5>(2) == OPC_JAL) {
                 self_feed.jump_address = sign_extend_jump(immjal_tmp + pc);
                 jump = true;
+                fetch_out.btb_update = true;
+                fetch_out.branch_taken = true;
+                fetch_out.bta = self_feed.jump_address;
             } else if (insn.slc<5>(2) == OPC_JALR) {
                 ac_int < PC_LEN, false > extended;
                 if (insn[31] == 0)
@@ -373,7 +376,11 @@ SC_MODULE(decode) {
                 extended.set_slc(0, insn.slc<12>(20));
                 self_feed.jump_address = extended + output.rs1;
                 self_feed.jump_address[0] = 0;
+                
                 jump = true;
+                fetch_out.btb_update = true;
+                fetch_out.branch_taken = true;
+                fetch_out.bta = self_feed.jump_address;
             } else {
                 jump = false;
             }
@@ -381,18 +388,25 @@ SC_MODULE(decode) {
             // -- Branch circuitry.
             branch = false;
             if (insn.slc<5>(2) == OPC_BEQ) { // BEQ,BNE, BLT, BGE, BLTU, BGEU
+				fetch_out.btb_update = true;
+				fetch_out.bta = self_feed.branch_address;
                 switch (insn.slc<3>(12)) {
                 case FUNCT3_BEQ:
-                    if (output.rs1 == output.rs2)
+                    if (output.rs1 == output.rs2) {
 						branch = true; // BEQ taken.
-                    #ifndef __SYNTHESIS__
-                    debug_dout_t.branch_taken = true;
-                    #endif
+						fetch_out.branch_taken = true;
+						
+						#ifndef __SYNTHESIS__
+						debug_dout_t.branch_taken = true;
+						#endif
+					}
 
                     break;
                 case FUNCT3_BNE:
                     if (output.rs1 != output.rs2) {
 						branch = true; //BNE taken.
+						fetch_out.branch_taken = true;
+                        
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -401,6 +415,8 @@ SC_MODULE(decode) {
                 case FUNCT3_BLT:
                     if (output.rs1 < output.rs2) {
 						branch = true; // BLT taken
+						fetch_out.branch_taken = true;
+						
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -409,6 +425,8 @@ SC_MODULE(decode) {
                 case FUNCT3_BGE:
                     if (output.rs1 >= output.rs2) {
 						branch = true; // BGE taken.
+						fetch_out.branch_taken = true;
+						
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -417,6 +435,8 @@ SC_MODULE(decode) {
                 case FUNCT3_BLTU:
                     if (output.rs1 < output.rs2) {
 						branch = true; // BLTU taken.
+						fetch_out.branch_taken = true;
+						
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -425,6 +445,7 @@ SC_MODULE(decode) {
                 case FUNCT3_BGEU:
                     if (output.rs1 >= output.rs2) {
 						branch = true; // BGEU taken.
+						fetch_out.branch_taken = true;
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -1107,7 +1128,7 @@ SC_MODULE(decode) {
                 flush = false;
                 fetch_out.address = pc + 4;
 				
-            } else if(flush_next) {				
+            } else if(flush_next) {
 				fetch_out.freeze = false;
 				fetch_out.redirect = false;
 								
@@ -1125,6 +1146,13 @@ SC_MODULE(decode) {
                 fetch_out.address = self_feed.branch_address;
                 fetch_out.redirect = true;
 				                
+            } else if (insn.slc<5>(2) == OPC_BEQ && !branch) {
+				freeze = false;
+                fetch_out.freeze = false;
+                flush = false;
+                fetch_out.address = pc + 4;
+                fetch_out.redirect = true;
+           
             } else {
                 freeze = false;
                 flush = false;
@@ -1151,7 +1179,7 @@ SC_MODULE(decode) {
                 output.ld = NO_LOAD;
                 output.st = NO_STORE;
                 output.alu_op = ALUOP_NULL;
-
+				fetch_out.btb_update = false;
                 #ifndef __SYNTHESIS__
                 debug_dout_t.regwrite = "REGWRITE NO";
                 debug_dout_t.ld = "NO_LOAD";
@@ -1163,7 +1191,7 @@ SC_MODULE(decode) {
                 load_instruction = true;
                 load_pc = pc;
             }
-			
+						
             fetch_dout.Push(fetch_out);
             dout.Push(output);
 

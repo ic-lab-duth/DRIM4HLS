@@ -14,8 +14,8 @@
 #ifndef HL5_DATATYPES_H
 #define HL5_DATATYPES_H
 
-// Fetch
-// ------------ fe_in_t
+// Decode
+// ------------ de_in_t
 #ifndef de_in_t_SC_WRAPPER_TYPE
 #define de_in_t_SC_WRAPPER_TYPE 1
 
@@ -1062,8 +1062,12 @@ struct fe_in_t {
     bool freeze;
     bool redirect;
     ac_int < PC_LEN, false > address;
+    bool btb_update;
+    bool branch_taken;
+    ac_int < PC_LEN, false > pc;
+    ac_int < PC_LEN, false > bta;
 
-    static const int width = 1 + 1 + PC_LEN;
+    static const int width = 2 + PC_LEN + 2 + PC_LEN + PC_LEN;
     //
     // Default constructor.
     //
@@ -1071,6 +1075,10 @@ struct fe_in_t {
         freeze = false;
         redirect = false;
         address = 0;
+        btb_update = false;
+        branch_taken = false; 
+        pc = 0;
+        bta = 0;
     }
 
     //
@@ -1080,6 +1088,10 @@ struct fe_in_t {
         freeze = other.freeze;
         redirect = other.redirect;
         address = other.address;
+        btb_update = other.btb_update;
+        branch_taken = other.branch_taken;
+        pc = other.pc;
+        bta = other.bta;
     }
 
     //
@@ -1092,6 +1104,14 @@ struct fe_in_t {
             return false;
         if (!(address == other.address))
             return false;
+        if (!(btb_update == other.btb_update))
+            return false;
+        if (!(branch_taken == other.branch_taken))
+            return false;   
+        if (!(pc == other.pc))
+            return false;
+        if (!(bta == other.bta))
+            return false;
         return true;
     }
 
@@ -1102,6 +1122,10 @@ struct fe_in_t {
         freeze = other.freeze;
         redirect = other.redirect;
         address = other.address;
+        btb_update = other.btb_update;
+        branch_taken = other.branch_taken;
+        pc = other.pc;
+        bta = other.bta;
 
         return *this;
     }
@@ -1111,6 +1135,10 @@ struct fe_in_t {
             m & freeze;
             m & redirect;
             m & address;
+            m & btb_update;
+            m & branch_taken;
+            m & pc;
+            m & bta;
         }
 
     //
@@ -1120,6 +1148,10 @@ struct fe_in_t {
         sc_trace(tf, object.freeze, in_name + std::string(".freeze"));
         sc_trace(tf, object.redirect, in_name + std::string(".redirect"));
         sc_trace(tf, object.address, in_name + std::string(".address"));
+        sc_trace(tf, object.btb_update, in_name + std::string(".btb_update"));
+        sc_trace(tf, object.branch_taken, in_name + std::string(".branch_taken"));
+        sc_trace(tf, object.pc, in_name + std::string(".pc"));
+        sc_trace(tf, object.bta, in_name + std::string(".bta"));
     }
 
     //
@@ -1131,6 +1163,10 @@ struct fe_in_t {
         os << object.freeze;
         os << object.redirect;
         os << object.address;
+        os << object.btb_update;
+        os << object.branch_taken;
+        os << object.pc;
+        os << object.bta;
         os << ")";
         return os;
     }
@@ -1586,6 +1622,171 @@ struct dcache_out_t {
         os << "(";
         os << object.data;
         os << object.hit;
+        os << ")";
+        return os;
+    }
+
+};
+#endif
+
+// ------------ btb_data_t
+#ifndef btb_data_t_SC_WRAPPER_TYPE
+#define btb_data_t_SC_WRAPPER_TYPE 1
+
+struct btb_data_t {
+    //
+    // Member declarations.
+    //
+    ac_int < BTB_TAG_WIDTH, false > tag;
+    ac_int < PC_LEN, false > bta;
+    ac_int < BTB_PREDICTION_BITS_WIDTH, false > prediction_data;
+
+    static const int width = BTB_TAG_WIDTH + PC_LEN + BTB_PREDICTION_BITS_WIDTH;
+    //
+    // Default constructor.
+    //
+    btb_data_t() {
+        tag = 0;
+        bta = 0;
+        prediction_data = 0;
+    }
+
+    //
+    // Copy constructor.
+    //
+    btb_data_t(const btb_data_t &other) {
+        tag = other.tag;
+        bta = other.bta;
+        prediction_data = other.prediction_data;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const btb_data_t &other) {
+        if (!(tag == other.tag))
+            return false;
+        if (!(bta == other.bta))
+            return false;
+        if (!(prediction_data == other.prediction_data))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from btb_data_t.
+    //
+    inline btb_data_t & operator = (const btb_data_t &other) {
+        tag = other.tag;
+        bta = other.bta;
+        prediction_data = other.prediction_data;
+
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & tag;
+            m & bta;
+            m & prediction_data;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const btb_data_t & object, const std::string & in_name) {
+        sc_trace(tf, object.tag, in_name + std::string(".tag"));
+        sc_trace(tf, object.bta, in_name + std::string(".bta"));
+        sc_trace(tf, object.prediction_data, in_name + std::string(".prediction_data"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const btb_data_t & object) {
+        os << "(";
+        os << object.tag;
+        os << object.bta;
+        os << object.prediction_data;
+        os << ")";
+        return os;
+    }
+
+};
+#endif
+
+// ------------ btb_data_t
+#ifndef btb_out_t_SC_WRAPPER_TYPE
+#define btb_out_t_SC_WRAPPER_TYPE 1
+
+struct btb_out_t {
+    //
+    // Member declarations.
+    //
+    bool btb_valid;
+    ac_int < PC_LEN, false > bta;
+
+    static const int width = 1 + PC_LEN;
+    //
+    // Default constructor.
+    //
+    btb_out_t() {
+        btb_valid = false;
+        bta = 0;
+    }
+
+    //
+    // Copy constructor.
+    //
+    btb_out_t(const btb_out_t &other) {
+        btb_valid = other.btb_valid;
+        bta = other.bta;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const btb_out_t &other) {
+        if (!(btb_valid == other.btb_valid))
+            return false;
+        if (!(bta == other.bta))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from btb_data_t.
+    //
+    inline btb_out_t & operator = (const btb_out_t &other) {
+        btb_valid = other.btb_valid;
+        bta = other.bta;
+        
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & btb_valid;
+            m & bta;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const btb_out_t & object, const std::string & in_name) {
+        sc_trace(tf, object.btb_valid, in_name + std::string(".btb_valid"));
+        sc_trace(tf, object.bta, in_name + std::string(".bta"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const btb_out_t & object) {
+        os << "(";
+        os << object.btb_valid;
+        os << object.bta;
         os << ")";
         return os;
     }
