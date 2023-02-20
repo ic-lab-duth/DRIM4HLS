@@ -29,19 +29,13 @@ struct de_in_t {
     //
     // Member declarations.
     //
-    ac_int < 1, false > jump;
-    ac_int < 1, false > branch;
     ac_int < PC_LEN, false > jump_address;
     ac_int < PC_LEN, false > branch_address;
-
-    static const int width = 2 + 2 * PC_LEN;
 
     //
     // Default constructor.
     //
     de_in_t() {
-        jump = 0;
-        branch = 0;
         jump_address = 0;
         branch_address = 0;
     }
@@ -50,8 +44,6 @@ struct de_in_t {
     // Copy constructor.
     //
     de_in_t(const de_in_t & other) {
-        jump = other.jump;
-        branch = other.branch;
         jump_address = other.jump_address;
         branch_address = other.branch_address;
     }
@@ -60,10 +52,6 @@ struct de_in_t {
     // Comparison operator.
     //
     inline bool operator == (const de_in_t & other) {
-        if (!(jump == other.jump))
-            return false;
-        if (!(branch == other.branch))
-            return false;
         if (!(jump_address == other.jump_address))
             return false;
         if (!(branch_address == other.branch_address))
@@ -75,44 +63,9 @@ struct de_in_t {
     // Assignment operator from de_in_t.
     //
     inline de_in_t & operator = (const de_in_t & other) {
-        jump = other.jump;
-        branch = other.branch;
         jump_address = other.jump_address;
         branch_address = other.branch_address;
         return *this;
-    }
-
-    template < unsigned int Size >
-        void Marshall(Marshaller < Size > & m) {
-            m & jump;
-            m & branch;
-            m & jump_address;
-            m & branch_address;
-        }
-
-    //
-    // sc_trace function.
-    //
-    inline friend void sc_trace(sc_trace_file * tf, const de_in_t & object, const std::string & in_name) {
-        sc_trace(tf, object.jump, in_name + std::string(".jump"));
-        sc_trace(tf, object.branch, in_name + std::string(".branch"));
-        sc_trace(tf, object.jump_address, in_name + std::string(".jump_address"));
-        sc_trace(tf, object.branch_address, in_name + std::string(".branch_address"));
-    }
-
-    //
-    // stream operator.
-    //
-    inline friend ostream & operator << (ostream & os, const de_in_t & object) {
-
-        os << "(";
-        os << object.jump;
-        os << "," << object.branch;
-        os << "," << object.jump_address;
-        os << "," << object.branch_address;
-        os << ")";
-
-        return os;
     }
 
 };

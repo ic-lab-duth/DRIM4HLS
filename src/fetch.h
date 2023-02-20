@@ -36,6 +36,8 @@ SC_MODULE(fetch) {
     sc_in < bool > CCS_INIT_S1(rst);
     // Channel ports
     Connections::In < fe_in_t > CCS_INIT_S1(fetch_din);
+    //#pragma hls_direct_input
+    //sc_in < fe_in_t > CCS_INIT_S1(fetch_din);
     Connections::In < imem_out_t > CCS_INIT_S1(imem_dout);
     Connections::Out < imem_in_t > CCS_INIT_S1(imem_din);
     Connections::Out < fe_out_t > CCS_INIT_S1(dout);
@@ -57,8 +59,9 @@ SC_MODULE(fetch) {
     bool redirect;
     bool redirect_tmp;
     
+    ac_int < PC_LEN, false > mispredictions;
+    ac_int < PC_LEN, false > correct_predictions;
     ac_int < PC_LEN, false > redirect_addr;
-	ac_int < PC_LEN, false > redirect_addr_tmp;
 	
 	ac_int < DATA_SIZE, false > mem_dout;
     ac_int < ICACHE_LINE, false > imem_data;
@@ -85,6 +88,7 @@ SC_MODULE(fetch) {
 	
     bool freeze;
     bool hit_buffer;
+    int position;
 	
     SC_CTOR(fetch): imem_din("imem_din"),
     fetch_din("fetch_din"),
@@ -108,6 +112,7 @@ SC_MODULE(fetch) {
             tag = 0;
             index= 0;
             offset = 0;
+            position = 0;
 									
             trap = 0;
             trap_cause = NULL_CAUSE;
@@ -118,7 +123,7 @@ SC_MODULE(fetch) {
 			redirect = false;
             //  Init. pc to START_ADDRESS - 4 as on first fetch it will be incremented by
             //  4, thus fetching instruction at address 0
-            pc = -4;
+            pc = 0;
             pc_tmp = -4;
             buffer_addr = 0;
             
@@ -130,6 +135,9 @@ SC_MODULE(fetch) {
 				    icache_buffer_instr[n][l] = 0;
 				}
 			}
+			
+			mispredictions = 0;
+			correct_predictions = 0;
             
             wait();
         }
@@ -137,23 +145,8 @@ SC_MODULE(fetch) {
         #pragma pipeline_stall_mode flush
         FETCH_BODY: while (true) {
             //sc_assert(sc_time_stamp().to_double() < 1500000);
-            
-            if (fetch_din.PopNB(fetch_in)) {
-                // Mechanism for incrementing PC
-                redirect = fetch_in.redirect;
-                redirect_addr = fetch_in.address;
-                freeze = fetch_in.freeze;
-            }
-
-            // Mechanism for incrementing PC
-            if ((redirect && redirect_addr != pc) || freeze) {
-                pc = redirect_addr;
-            } else if (!freeze) {
-                pc = (btb_out.btb_valid) ? btb_out.bta : (ac_int < PC_LEN, false >)(pc + 4);
-            }
-            			
-			btb();
 			
+			// step 1 fetch from memory/cache
             hit_buffer = false;
             fe_out.pc = pc;
             
@@ -235,8 +228,25 @@ SC_MODULE(fetch) {
             }
             
 			icache_write();
-    
-            dout.Push(fe_out);
+			
+			//step2 read from backchannel (decode)
+			if (position == 1 && !redirect) {
+				fetch_in = fetch_din.Pop();
+				redirect_addr = fetch_in.address;
+			}else {
+				position = 1;
+			}
+			// step3 if instruction correct send it, update btb and get new pc
+			btb_write();
+			if (redirect_addr == pc) {				
+				btb();
+				pc = (btb_out.btb_valid) ? btb_out.bta : (ac_int < PC_LEN, false >)(pc + 4);
+				redirect = false;
+				dout.Push(fe_out);
+			}else { // step4 if instruction incorrect, redirect
+				pc = redirect_addr;
+				redirect = true;
+			}
 			
 			#ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << pc << endl);
@@ -312,26 +322,7 @@ SC_MODULE(fetch) {
 
     }
     
-    void btb () {
-        ac_int < PC_LEN, false > update_pc = fetch_in.pc;
-		ac_int < BTB_INDEX_WIDTH, false > index = update_pc.slc<BTB_INDEX_WIDTH>(0);
-		ac_int < BTB_TAG_WIDTH, false > tag = update_pc.slc<BTB_TAG_WIDTH>(BTB_INDEX_WIDTH);
-		
-		btb_data_t data = btb_data[index];
-        //check if tag or branch target address differ in branch target buffer
-        if (fetch_in.btb_update) {
-            if(tag != data.tag || fetch_in.bta != data.bta) {
-                btb_data[index].tag = tag;
-                btb_data[index].bta = fetch_in.bta;
-                btb_data[index].prediction_data = WEAK_NON_TAKEN;
-                
-            }else if (fetch_in.branch_taken && btb_data[index].prediction_data < STRONG_TAKEN){
-                btb_data[index].prediction_data = btb_data[index].prediction_data + 1;
-            }else if (!fetch_in.branch_taken && btb_data[index].prediction_data > 0) {
-                btb_data[index].prediction_data = btb_data[index].prediction_data - 1;
-            }
-        }
-        
+    void btb () {     
         ac_int < BTB_INDEX_WIDTH, false > next_index = pc.slc<BTB_INDEX_WIDTH>(0);
 		ac_int < BTB_TAG_WIDTH, false > next_tag = pc.slc<BTB_TAG_WIDTH>(BTB_INDEX_WIDTH);
         
@@ -343,6 +334,43 @@ SC_MODULE(fetch) {
             btb_out.btb_valid = false;
         }
     }
+    
+    void btb_write () {
+		ac_int < PC_LEN, false > update_pc = fetch_in.pc;
+		ac_int < BTB_INDEX_WIDTH, false > index = update_pc.slc<BTB_INDEX_WIDTH>(0);
+		ac_int < BTB_TAG_WIDTH, false > tag = update_pc.slc<BTB_TAG_WIDTH>(BTB_INDEX_WIDTH);
+		
+		btb_data_t data = btb_data[index];
+        //check if tag or branch target address differ in branch target buffer
+        if (fetch_in.btb_update) {
+            if(tag != data.tag || fetch_in.bta != data.bta) {
+                btb_data[index].tag = tag;
+                btb_data[index].bta = fetch_in.bta;
+                btb_data[index].prediction_data = WEAK_NON_TAKEN;
+                if (fetch_in.branch_taken) {
+					mispredictions++;
+				}    
+                
+            }else if (fetch_in.branch_taken && btb_data[index].prediction_data < STRONG_TAKEN){
+                btb_data[index].prediction_data = btb_data[index].prediction_data + 1;
+                if(btb_data[index].prediction_data > WEAK_NON_TAKEN + 1) {
+					correct_predictions++;
+				}else {
+					mispredictions++;
+				}
+            }else if (!fetch_in.branch_taken && btb_data[index].prediction_data > 0) {
+                btb_data[index].prediction_data = btb_data[index].prediction_data - 1;
+                if(btb_data[index].prediction_data > WEAK_NON_TAKEN-1) {
+					mispredictions++;
+				}else {
+					correct_predictions++;
+				}
+                
+            }else {
+				correct_predictions++;
+			}
+        }
+	}
 };
 
 #endif

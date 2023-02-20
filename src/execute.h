@@ -76,7 +76,7 @@ SC_MODULE(execute) {
     Connections::Out < exe_out_t > CCS_INIT_S1(dout);
     // Forward
     Connections::Out < reg_forward_t > CCS_INIT_S1(fwd_exe);
-
+    
     // Member variables
     de_out_t data_in;
     de_out_t input;
@@ -579,17 +579,13 @@ SC_MODULE(execute) {
                 forward.regfile_data = output.alu_res;
                 forward.pc = input.pc;
             }
-			
-            fwd_exe.Push(forward);
 
             if (!nop)
                csr[MINSTRET_I]++;
 
             // Put
-            if (!nop && input.pc != 10) {
-                dout.Push(output);
-            }
-
+			fwd_exe.Push(forward);
+            dout.Push(output);
             #ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "nop " << nop << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "pc= " << input.pc << endl);

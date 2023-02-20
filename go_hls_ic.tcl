@@ -1,7 +1,7 @@
 options set Input/CppStandard c++11
 
 # Set your working directory pointing to project's folder. Example:
-# set_working_dir /home/dpatsidis/Desktop/DRIM4HLS_AC_WORKING_caches_nway_CLEAN
+# set_working_dir /home/dpatsidis/Desktop/DRIM4HLS
 
 # Add project files
 solution file add ./src/fetch.h
@@ -10,7 +10,7 @@ solution file add ./src/drim4hls.h
 solution file add ./src/top.cpp
 solution file add ./src/execute.h
 solution file add ./src/writeback.h
-solution file set /home/dpatsidis/Desktop/DRIM4HLS_AC_WORKING_caches_nway_CLEAN/src/top.cpp -exclude true
+solution file set /home/dpatsidis/Desktop/DRIM4HLS/src/top.cpp -exclude true
 go compile
 
 # Set Catapult library
@@ -31,12 +31,15 @@ go assembly
 # Set architectural configurations
 # The settings below were used for a 2-way data and instruction cache with cache line of 64bit
 # If the associativity of the cache changes, interleave must change accordingly
+directive set /drim4hls/fetch/fetch_th/btb_data.tag:rsc -MAP_TO_MODULE {[Register]}
+directive set /drim4hls/fetch/fetch_th/btb_data.bta:rsc -MAP_TO_MODULE {[Register]}
+directive set /drim4hls/fetch/fetch_th/btb_data.prediction_data:rsc -MAP_TO_MODULE {[Register]}
 directive set /drim4hls/fetch/fetch_th/FETCH_BODY:for -UNROLL yes
 directive set /drim4hls/fetch/fetch_th/FETCH_BODY:for:for -UNROLL yes
 directive set /drim4hls/fetch/fetch_th/fetch::icache:for -UNROLL yes
 directive set /drim4hls/fetch/fetch_th/FETCH_BODY:for#1 -UNROLL yes
-directive set /drim4hls/fetch/fetch_th/FETCH_BODY:case-1:for -UNROLL yes
-directive set /drim4hls/fetch/fetch_th/FETCH_BODY:case-1:for:for -UNROLL yes
+directive set /drim4hls/fetch/fetch_th/FETCH_BODY:if#1:for -UNROLL yes
+directive set /drim4hls/fetch/fetch_th/FETCH_BODY:if#1:for:for -UNROLL yes
 directive set /drim4hls/fetch/fetch_th/fetch::icache_write:for -UNROLL yes
 directive set /drim4hls/fetch/fetch_th/icache_data.data:rsc -MAP_TO_MODULE ram_nangate-45nm-dualport_beh.RAM_dualRW
 directive set /drim4hls/fetch/fetch_th/icache_data.data:rsc -GEN_EXTERNAL_ENABLE true
@@ -48,21 +51,10 @@ directive set /drim4hls/execute/csr.rom:rsc -MAP_TO_MODULE {[Register]}
 directive set /drim4hls/execute/execute_th/csr:rsc -MAP_TO_MODULE {[Register]}
 directive set /drim4hls/writeback/writeback_th/writeback::dcache:for -UNROLL yes
 directive set /drim4hls/writeback/writeback_th/writeback::dcache_write:for -UNROLL yes
+directive set /drim4hls/writeback/writeback_th/dcache_data.data:rsc -INTERLEAVE 2
 directive set /drim4hls/writeback/writeback_th/dcache_tags.tag:rsc -MAP_TO_MODULE {[Register]}
 directive set /drim4hls/writeback/writeback_th/dcache_tags.valid:rsc -MAP_TO_MODULE {[Register]}
 directive set /drim4hls/writeback/writeback_th/dcache_tags.dirty:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/writeback/writeback_th/cache_data.data:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/writeback/writeback_th/cache_tag.tag:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/writeback/writeback_th/cache_tag.valid:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/writeback/writeback_th/cache_tag.dirty:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/writeback/writeback_th/dcache_data.data:rsc -INTERLEAVE 2
-directive set /drim4hls/fetch/fetch_th/icache_buffer_addr:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/fetch/fetch_th/icache_buffer_instr:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/fetch/fetch_th/icache_tags.tag:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/fetch/fetch_th/icache_tags.valid:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/fetch/fetch_th/cache_data.data:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/fetch/fetch_th/cache_tag.tag:rsc -MAP_TO_MODULE {[Register]}
-directive set /drim4hls/fetch/fetch_th/cache_tag.valid:rsc -MAP_TO_MODULE {[Register]}
 go architect
 
 # Remove RD/WR dependencies between memory blocks 

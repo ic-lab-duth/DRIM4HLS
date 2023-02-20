@@ -37,7 +37,6 @@ SC_MODULE(decode) {
     // FlexChannel initiators
     Connections::Out < de_out_t > CCS_INIT_S1(dout);
     Connections::Out < fe_in_t > CCS_INIT_S1(fetch_dout);
-
     Connections::In < mem_out_t > CCS_INIT_S1(feed_from_wb);
     Connections::In < fe_out_t > CCS_INIT_S1(fetch_din);
     Connections::In < reg_forward_t > CCS_INIT_S1(fwd_exe);
@@ -106,7 +105,13 @@ SC_MODULE(decode) {
      
     bool flush_next;
     bool new_instr;
-   
+    int position_fwd;
+    int position_wb;
+    
+    ac_int < DCACHE_INDEX_WIDTH, false > last_ldst_addr;
+    ac_int < DCACHE_INDEX_WIDTH, false > last_ldst_addr_temp;
+    bool last_ldst_valid;
+     
     SC_CTOR(decode): clk("clk"),
     rst("rst"),
     dout("dout"),
@@ -160,7 +165,7 @@ SC_MODULE(decode) {
             feed_from_wb.Reset();
             fetch_dout.Reset();
             fwd_exe.Reset();
-			
+			//fetch_dout.write(fetch_out);
             // Init. sentinel flags to zero.
             for (int i = 0; i < REG_NUM; i++) {
                 sentinel[i] = SENTINEL_INIT;
@@ -175,9 +180,8 @@ SC_MODULE(decode) {
             o_icount.write(0); // other
             
             addr_tmp = 0;
-            self_feed.jump_address = 0;
             zero_reg_addr = 0;
-
+			
             freeze = false;
             flush = false;
 	        flush_next = false;
@@ -193,6 +197,14 @@ SC_MODULE(decode) {
             load_instruction = false;
             load_pc = -4;
             new_instr = false;
+            position_fwd = 0;
+            position_wb = 0;
+            fetch_out.address = 0;
+
+			last_ldst_valid = false;
+			last_ldst_addr = 0;
+			last_ldst_addr_temp = 0;
+            
             wait();
         }
         
@@ -201,31 +213,30 @@ SC_MODULE(decode) {
         DECODE_BODY: while (true) {
             // Retrieve data from instruction memory and fetch stage.
             // If processor stalls then just clear the channels from new data.
-
-            if (fwd_exe.PopNB(temp_fwd)) {
-                fwd = temp_fwd;
-                
-            }else {
-				fwd.ldst = true;
+			
+			if (!freeze) {
+				fetch_in = fetch_din.Pop();
+				pc = fetch_in.pc;
+				imem_data = fetch_in.instr_data;
 			}
-
-            if (!flush) {
-                fetch_in = fetch_din.Pop();
-
-            } else {
-                fetch_din.Pop();
-            }
-
-            if (feed_from_wb.PopNB(feedinput_tmp)) {
-				feedinput = feedinput_tmp;
-
-                if (feedinput_tmp.pc == load_pc && load_instruction) {
+			
+    
+            if (position_fwd == 1) {
+				fwd = fwd_exe.Pop();
+			}else {
+				position_fwd = 1;
+			}
+			
+			if (position_wb == 2) {
+				feedinput = feed_from_wb.Pop();
+				
+				if (feedinput.pc == load_pc && load_instruction) {
                     load_instruction = false;
                 }
-            }else {
-				feedinput.regwrite = 0;
+			}else {
+				position_wb++;
 			}
-            
+
             if (feedinput.regwrite == 1 && feedinput.regfile_address != 0) { // Actual writeback.
                     regfile[feedinput.regfile_address] = feedinput.regfile_data; // Overwrite register.
 
@@ -238,23 +249,13 @@ SC_MODULE(decode) {
             flush_next = false;
             new_instr = false;
             
-            if (!freeze && (((jump) && self_feed.jump_address != fetch_in.pc) || ((branch) && self_feed.branch_address != fetch_in.pc) || (fetch_in.pc != pc + 4 && !branch && !jump))) {
-				flush_next = true;
-
-			}else if (!freeze) {
-				pc = fetch_in.pc;
-
-			    imem_data = fetch_in.instr_data;
-			    
-			    forward_success_rs1 = false;
-                forward_success_rs2 = false;
-                
-                new_instr = true;
-                
-			}
-
             insn = imem_data;
-			
+			    
+			forward_success_rs1 = false;
+            forward_success_rs2 = false;
+                
+            new_instr = true;
+
             #ifndef __SYNTHESIS__
             debug_dout_t.pc = pc;
             #endif
@@ -264,26 +265,22 @@ SC_MODULE(decode) {
             // Increment some instruction counters
             //opcode = sc_uint < OPCODE_SIZE > (sc_bv < OPCODE_SIZE > (insn.range(6, 2)));
 			opcode = insn.slc<OPCODE_SIZE>(2);
-            if (new_instr) {
 
-                if (opcode == OPC_LW || opcode == OPC_SW)
-                    // Increment memory instruction counter
-                    m_icount.write(m_icount.read() + 1);
-                else if (opcode == OPC_JAL || opcode == OPC_JALR) {
-                    // Increment jump instruction counter
-                    j_icount.write(j_icount.read() + 1);
-                } else if (opcode == OPC_BEQ) {
-                    // Increment branch instruction counter
-                    b_icount.write(b_icount.read() + 1);
-                } else
-                    // Increment other instruction counter
-                    o_icount.write(o_icount.read() + 1);
-
-                icount.write(icount.read() + 1);
-            }
-
-            fetch_out.freeze = false;
-            fetch_out.redirect = false;
+            if (opcode == OPC_LW || opcode == OPC_SW) {
+                // Increment memory instruction counter
+				m_icount.write(m_icount.read() + 1);
+			}
+            else if (opcode == OPC_JAL || opcode == OPC_JALR) {
+				// Increment jump instruction counter
+                j_icount.write(j_icount.read() + 1);
+			} else if (opcode == OPC_BEQ) {
+				// Increment branch instruction counter
+				b_icount.write(b_icount.read() + 1);
+            } else {
+				// Increment other instruction counter
+                o_icount.write(o_icount.read() + 1);
+			}
+            icount.write(icount.read() + 1);
             
             freeze_tmp = false;
 
@@ -356,16 +353,18 @@ SC_MODULE(decode) {
 			immbranch_tmp[12] = insn[31];
 
             self_feed.branch_address = sign_extend_branch(immbranch_tmp + pc);
-            
             // -- Jump.
             fetch_out.branch_taken = false;
             fetch_out.btb_update = false;
+            fetch_out.address = pc + 4;
+            jump = false;
             if (insn.slc<5>(2) == OPC_JAL) {
                 self_feed.jump_address = sign_extend_jump(immjal_tmp + pc);
                 jump = true;
                 fetch_out.btb_update = true;
                 fetch_out.branch_taken = true;
                 fetch_out.bta = self_feed.jump_address;
+                fetch_out.address = self_feed.jump_address;
             } else if (insn.slc<5>(2) == OPC_JALR) {
                 ac_int < PC_LEN, false > extended;
                 if (insn[31] == 0)
@@ -381,8 +380,7 @@ SC_MODULE(decode) {
                 fetch_out.btb_update = true;
                 fetch_out.branch_taken = true;
                 fetch_out.bta = self_feed.jump_address;
-            } else {
-                jump = false;
+                fetch_out.address = self_feed.jump_address;
             }
 
             // -- Branch circuitry.
@@ -395,7 +393,7 @@ SC_MODULE(decode) {
                     if (output.rs1 == output.rs2) {
 						branch = true; // BEQ taken.
 						fetch_out.branch_taken = true;
-						
+						fetch_out.address = self_feed.branch_address;
 						#ifndef __SYNTHESIS__
 						debug_dout_t.branch_taken = true;
 						#endif
@@ -406,7 +404,7 @@ SC_MODULE(decode) {
                     if (output.rs1 != output.rs2) {
 						branch = true; //BNE taken.
 						fetch_out.branch_taken = true;
-                        
+                        fetch_out.address = self_feed.branch_address;
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -416,7 +414,7 @@ SC_MODULE(decode) {
                     if (output.rs1 < output.rs2) {
 						branch = true; // BLT taken
 						fetch_out.branch_taken = true;
-						
+						fetch_out.address = self_feed.branch_address;
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -426,7 +424,7 @@ SC_MODULE(decode) {
                     if (output.rs1 >= output.rs2) {
 						branch = true; // BGE taken.
 						fetch_out.branch_taken = true;
-						
+						fetch_out.address = self_feed.branch_address;
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -436,7 +434,7 @@ SC_MODULE(decode) {
                     if (output.rs1 < output.rs2) {
 						branch = true; // BLTU taken.
 						fetch_out.branch_taken = true;
-						
+						fetch_out.address = self_feed.branch_address;
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -446,6 +444,7 @@ SC_MODULE(decode) {
                     if (output.rs1 >= output.rs2) {
 						branch = true; // BGEU taken.
 						fetch_out.branch_taken = true;
+						fetch_out.address = self_feed.branch_address;
                         #ifndef __SYNTHESIS__
                         debug_dout_t.branch_taken = true;
                         #endif
@@ -1120,44 +1119,41 @@ SC_MODULE(decode) {
             } // --- END of OPCODE switch
             // *** END of control word generation.
             ac_int <1, false> sen1_test = sentinel[rs1_addr][0];
-            ac_int <1, false> sen2_test = sentinel[rs2_addr][0];
+            ac_int <1, false> sen2_test = sentinel[rs2_addr][0];    
+            
+            ac_int <XLEN, false> curr_temp_rs2 = 0;
+            if (output.alu_src == ALUSRC_RS2) {
+                curr_temp_rs2 = output.rs2;
 
-            if ((sen1_test && !forward_success_rs1) || (sen2_test && !forward_success_rs2) || load_instruction) {
-                freeze = true;
-                fetch_out.freeze = true;
-                flush = false;
-                fetch_out.address = pc + 4;
-				
-            } else if(flush_next) {
-				fetch_out.freeze = false;
-				fetch_out.redirect = false;
-								
-			} else if ((jump) && !flush && self_feed.jump_address != pc + 4) {
-                freeze = true;
-                fetch_out.freeze = false;
-                flush = true;
-                fetch_out.address = self_feed.jump_address;
-                fetch_out.redirect = true;
-				                
-            } else if ((branch) && !flush && self_feed.branch_address != pc + 4) {
-                freeze = true;
-                fetch_out.freeze = false;
-                flush = true;
-                fetch_out.address = self_feed.branch_address;
-                fetch_out.redirect = true;
-				                
-            } else if (insn.slc<5>(2) == OPC_BEQ && !branch) {
-				freeze = false;
-                fetch_out.freeze = false;
-                flush = false;
-                fetch_out.address = pc + 4;
-                fetch_out.redirect = true;
-           
+            } else if (output.alu_src == ALUSRC_IMM_I) {
+                curr_temp_rs2.set_slc(0, output.imm_u.slc<12>(8));
+                if (output.imm_u[19] == 1) {
+					curr_temp_rs2.set_slc(12, (ac_int < 20, false >) 1048575);
+				}
+            } else if (output.alu_src == ALUSRC_IMM_S) {
+				curr_temp_rs2.set_slc(0, output.dest_reg);
+                curr_temp_rs2.set_slc(5, output.imm_u.slc<7>(13));
+                 if (curr_temp_rs2[11] == 1) {
+					curr_temp_rs2.set_slc(12, (ac_int < 20, false >) 1048575);
+				}
+
             } else {
-                freeze = false;
-                flush = false;
+				curr_temp_rs2.set_slc(0, (ac_int < 12, false >)0); 
+				curr_temp_rs2.set_slc(12, output.imm_u.slc<20>(0));
             }
-			
+            
+            last_ldst_addr_temp = (output.rs1 + curr_temp_rs2).slc<DCACHE_INDEX_WIDTH>(2 + DCACHE_OFFSET_WIDTH);
+            
+            if ((output.ld != NO_LOAD || output.st != NO_STORE) && (last_ldst_addr_temp == last_ldst_addr) && last_ldst_valid && !freeze) {
+                load_instruction = true;
+                load_pc = pc;
+            }
+            
+            freeze = false;
+            if (load_instruction || (sen1_test && !forward_success_rs1) || (sen2_test && !forward_success_rs2)) {
+				freeze = true;
+			}  
+            
             ac_int < 1, false > out_regwrite = output.regwrite;
             ac_int < 33, false > sen_input;
             
@@ -1173,7 +1169,7 @@ SC_MODULE(decode) {
             }
 
             // *** Transform instruction into nop when freeze is active
-            if (freeze || insn == 0 || flush_next) {
+            if (insn == 0 || freeze) {
                 // Bubble.
                 output.regwrite = 0;
                 output.ld = NO_LOAD;
@@ -1186,14 +1182,18 @@ SC_MODULE(decode) {
                 debug_dout_t.st = "NO_STORE";
                 #endif
             }
-
+            
             if (output.ld != NO_LOAD || output.st != NO_STORE) {
-                load_instruction = true;
-                load_pc = pc;
-            }
-						
-            fetch_dout.Push(fetch_out);
-            dout.Push(output);
+				last_ldst_addr = last_ldst_addr_temp;
+				last_ldst_valid = true;
+			}else {
+				last_ldst_valid = false;
+			}
+			
+            if (!freeze) {
+				fetch_dout.Push(fetch_out);
+			}
+			dout.Push(output);
 
             #ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "load_instruction=" << load_instruction << endl);

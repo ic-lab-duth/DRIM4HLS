@@ -250,7 +250,7 @@ int sc_main(int argc, char * argv[]) {
 
     //std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS_AC_WORKING_caches_nway_CLEAN/examples/insertion_sort/notmain.txt";
+    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS/examples/insertion_sort/notmain.txt";
 
     Top top("top", testing_program);
     sc_start();

@@ -66,7 +66,7 @@ SC_MODULE(writeback) {
     mem_out_t output;
 
     ac_int < DATA_SIZE, false > mem_dout;
-    ac_int < BLOCK_WIDTH, false > dmem_data;
+    ac_int < DCACHE_LINE, false > dmem_data;
     ac_int < XLEN, false > dmem_data_offset;
     
     dcache_data_t dcache_data[DCACHE_ENTRIES][DCACHE_WAYS];
@@ -80,10 +80,6 @@ SC_MODULE(writeback) {
     ac_int < DCACHE_INDEX_WIDTH, false > index;
     ac_int < DCACHE_OFFSET_WIDTH + 1, false> offset;
         
-    sc_out < ac_int <32, false> > count_miss;
-    sc_out < ac_int <32, false> > count_hit;
-    ac_int < 32, false > misses;
-    ac_int < 32, false> hits;
     bool freeze;
     // Constructor
     SC_CTOR(writeback): din("din"), dout("dout"), dmem_in("dmem_in"), dmem_out("dmem_out"), clk("clk"), rst("rst") {
@@ -99,7 +95,6 @@ SC_MODULE(writeback) {
 
             dout.Reset();
             dmem_in.Reset();
-			
             // Write dummy data to decode feedback.
             output.regfile_address = 0;
             output.regfile_data = 0;
@@ -117,12 +112,8 @@ SC_MODULE(writeback) {
             index = 0;
             offset = 0;
             
-			count_miss.write(0);
-			count_hit.write(0);
-			
-			misses = 0;
-			hits = 0;
 			freeze = false;
+			
         }
 
         #pragma hls_pipeline_init_interval 1
@@ -130,9 +121,8 @@ SC_MODULE(writeback) {
         WRITEBACK_BODY: while (true) {
 
             // Get
-            if (!freeze) {
-				input = din.Pop();
-			}
+			input = din.Pop();
+			
             #ifndef __SYNTHESIS__
                 writeback_out_t.aligned_address = 0;
                 writeback_out_t.load_data = 0;
@@ -190,18 +180,15 @@ SC_MODULE(writeback) {
             #endif
             
 			if ((input.ld != NO_LOAD || input.st != NO_STORE) && !freeze) { // a load is requested
-				freeze = true;
                 dcache_out = dcache();
 
                 switch (dcache_out.hit)
                 {
-                case DCACHE_HIT:
-                    hits++;
+                case CACHE_HIT:
                     dmem_data = dcache_out.data;
                     dmem_data_offset = dmem_data.slc<DATA_WIDTH>(offset*DATA_WIDTH);
                     
                     if (cache_tag[0][0].dirty && input.st != NO_STORE && cache_tag[0][0].tag != tag) {
-						misses++;
                         dmem_dout.write_en = true;
                         dmem_dout.data_in = dcache_out.data;
                         if (DCACHE_OFFSET_WIDTH) {
@@ -214,10 +201,9 @@ SC_MODULE(writeback) {
                     }
 
                     break;
-                case DCACHE_MISS:
+                case CACHE_MISS:
 				
                     dmem_dout.read_en = true;
-                    misses++;
                     if (cache_tag[0][DCACHE_WAYS - 1].dirty && cache_tag[0][DCACHE_WAYS - 1].tag != tag) {
                         dmem_dout.write_en = true;
                         dmem_dout.data_in = dcache_out.data;
@@ -379,12 +365,10 @@ SC_MODULE(writeback) {
             output.tag = input.tag;
             output.pc = input.pc;
 
-
-			count_miss.write(misses);
-			count_hit.write(hits);
             // Put
             freeze = false;
 		    dout.Push(output);
+		    
             #ifndef __SYNTHESIS__
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "load= " << writeback_out_t.load << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "store= " << writeback_out_t.store << endl);
