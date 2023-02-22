@@ -204,7 +204,7 @@ SC_MODULE(decode) {
 			last_ldst_valid = false;
 			last_ldst_addr = 0;
 			last_ldst_addr_temp = 0;
-            
+
             wait();
         }
         
@@ -356,13 +356,13 @@ SC_MODULE(decode) {
             // -- Jump.
             fetch_out.branch_taken = false;
             fetch_out.btb_update = false;
+            fetch_out.ras_update = false;
             fetch_out.address = pc + 4;
             jump = false;
             if (insn.slc<5>(2) == OPC_JAL) {
                 self_feed.jump_address = sign_extend_jump(immjal_tmp + pc);
                 jump = true;
-                fetch_out.btb_update = true;
-                fetch_out.branch_taken = true;
+                fetch_out.ras_update = true;
                 fetch_out.bta = self_feed.jump_address;
                 fetch_out.address = self_feed.jump_address;
             } else if (insn.slc<5>(2) == OPC_JALR) {
@@ -377,8 +377,7 @@ SC_MODULE(decode) {
                 self_feed.jump_address[0] = 0;
                 
                 jump = true;
-                fetch_out.btb_update = true;
-                fetch_out.branch_taken = true;
+
                 fetch_out.bta = self_feed.jump_address;
                 fetch_out.address = self_feed.jump_address;
             }
@@ -1175,6 +1174,7 @@ SC_MODULE(decode) {
                 output.ld = NO_LOAD;
                 output.st = NO_STORE;
                 output.alu_op = ALUOP_NULL;
+                fetch_out.ras_update = false;
 				fetch_out.btb_update = false;
                 #ifndef __SYNTHESIS__
                 debug_dout_t.regwrite = "REGWRITE NO";

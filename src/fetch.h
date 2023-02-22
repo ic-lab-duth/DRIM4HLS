@@ -59,6 +59,10 @@ SC_MODULE(fetch) {
     bool redirect;
     bool redirect_tmp;
     
+    ras_data_t ra_stack[RAS_ENTRIES];
+    ac_int < RAS_POINTER_SIZE, false > ras_pointer;
+    ac_int < RAS_POINTER_SIZE, false > tosp_pointer;
+    
     ac_int < PC_LEN, false > mispredictions;
     ac_int < PC_LEN, false > correct_predictions;
     ac_int < PC_LEN, false > redirect_addr;
@@ -117,6 +121,9 @@ SC_MODULE(fetch) {
             trap = 0;
             trap_cause = NULL_CAUSE;
             imem_in.instr_addr = 0;
+            
+			ras_pointer = 0;
+			tosp_pointer = 0;
             
             redirect_addr = 0;
 			freeze = false;
@@ -236,11 +243,13 @@ SC_MODULE(fetch) {
 			}else {
 				position = 1;
 			}
-			// step3 if instruction correct send it, update btb and get new pc
-			btb_write();
-			if (redirect_addr == pc) {				
+			// step3 if instruction correct send it, update btb, ras and get new pc
+			if (redirect_addr == pc) {
+				btb_write();
+				ras_write();				
 				btb();
-				pc = (btb_out.btb_valid) ? btb_out.bta : (ac_int < PC_LEN, false >)(pc + 4);
+				ras();
+				pc = (btb_out.btb_valid || btb_out.ras_valid) ? btb_out.bta : (ac_int < PC_LEN, false >)(pc + 4);
 				redirect = false;
 				dout.Push(fe_out);
 			}else { // step4 if instruction incorrect, redirect
@@ -370,6 +379,28 @@ SC_MODULE(fetch) {
 				correct_predictions++;
 			}
         }
+	}
+	
+	void ras() {
+		
+		if (imem_data_offset.slc<5>(2) == OPC_JALR && ra_stack[ras_pointer].valid) {
+			btb_out.ras_valid = true;
+			btb_out.bta = ra_stack[ras_pointer].pc;
+			ra_stack[ras_pointer].valid = false;
+			tosp_pointer = tosp_pointer - 1;
+			ras_pointer = tosp_pointer - 1;
+		}else {
+			btb_out.ras_valid = false;
+		}
+	}
+	
+	void ras_write() {
+		if (fetch_in.ras_update) {
+			ra_stack[tosp_pointer].pc = fetch_in.pc + 4;
+			ra_stack[tosp_pointer].valid = true;
+			tosp_pointer = tosp_pointer + 1;
+			ras_pointer = tosp_pointer - 1;
+		}
 	}
 };
 

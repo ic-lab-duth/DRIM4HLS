@@ -1016,11 +1016,12 @@ struct fe_in_t {
     bool redirect;
     ac_int < PC_LEN, false > address;
     bool btb_update;
+    bool ras_update;
     bool branch_taken;
     ac_int < PC_LEN, false > pc;
     ac_int < PC_LEN, false > bta;
 
-    static const int width = 2 + PC_LEN + 2 + PC_LEN + PC_LEN;
+    static const int width = 2 + PC_LEN + 3 + PC_LEN + PC_LEN;
     //
     // Default constructor.
     //
@@ -1029,6 +1030,7 @@ struct fe_in_t {
         redirect = false;
         address = 0;
         btb_update = false;
+        ras_update = false;
         branch_taken = false; 
         pc = 0;
         bta = 0;
@@ -1042,6 +1044,7 @@ struct fe_in_t {
         redirect = other.redirect;
         address = other.address;
         btb_update = other.btb_update;
+        ras_update = other.ras_update;
         branch_taken = other.branch_taken;
         pc = other.pc;
         bta = other.bta;
@@ -1058,6 +1061,8 @@ struct fe_in_t {
         if (!(address == other.address))
             return false;
         if (!(btb_update == other.btb_update))
+            return false;
+        if (!(ras_update == other.ras_update))
             return false;
         if (!(branch_taken == other.branch_taken))
             return false;   
@@ -1076,6 +1081,7 @@ struct fe_in_t {
         redirect = other.redirect;
         address = other.address;
         btb_update = other.btb_update;
+        ras_update = other.ras_update;
         branch_taken = other.branch_taken;
         pc = other.pc;
         bta = other.bta;
@@ -1089,6 +1095,7 @@ struct fe_in_t {
             m & redirect;
             m & address;
             m & btb_update;
+            m & ras_update;
             m & branch_taken;
             m & pc;
             m & bta;
@@ -1102,6 +1109,7 @@ struct fe_in_t {
         sc_trace(tf, object.redirect, in_name + std::string(".redirect"));
         sc_trace(tf, object.address, in_name + std::string(".address"));
         sc_trace(tf, object.btb_update, in_name + std::string(".btb_update"));
+        sc_trace(tf, object.ras_update, in_name + std::string(".ras_update"));
         sc_trace(tf, object.branch_taken, in_name + std::string(".branch_taken"));
         sc_trace(tf, object.pc, in_name + std::string(".pc"));
         sc_trace(tf, object.bta, in_name + std::string(".bta"));
@@ -1117,6 +1125,7 @@ struct fe_in_t {
         os << object.redirect;
         os << object.address;
         os << object.btb_update;
+        os << object.ras_update;
         os << object.branch_taken;
         os << object.pc;
         os << object.bta;
@@ -1678,14 +1687,16 @@ struct btb_out_t {
     // Member declarations.
     //
     bool btb_valid;
+    bool ras_valid;
     ac_int < PC_LEN, false > bta;
 
-    static const int width = 1 + PC_LEN;
+    static const int width = 2 + PC_LEN;
     //
     // Default constructor.
     //
     btb_out_t() {
         btb_valid = false;
+        ras_valid = false;
         bta = 0;
     }
 
@@ -1694,6 +1705,7 @@ struct btb_out_t {
     //
     btb_out_t(const btb_out_t &other) {
         btb_valid = other.btb_valid;
+        ras_valid = other.ras_valid;
         bta = other.bta;
     }
 
@@ -1702,6 +1714,8 @@ struct btb_out_t {
     //
     inline bool operator == (const btb_out_t &other) {
         if (!(btb_valid == other.btb_valid))
+            return false;
+        if (!(ras_valid == other.ras_valid))
             return false;
         if (!(bta == other.bta))
             return false;
@@ -1713,6 +1727,7 @@ struct btb_out_t {
     //
     inline btb_out_t & operator = (const btb_out_t &other) {
         btb_valid = other.btb_valid;
+        ras_valid = other.ras_valid;
         bta = other.bta;
         
         return *this;
@@ -1721,6 +1736,7 @@ struct btb_out_t {
     template < unsigned int Size >
         void Marshall(Marshaller < Size > & m) {
             m & btb_valid;
+            m & ras_valid;
             m & bta;
         }
 
@@ -1729,6 +1745,7 @@ struct btb_out_t {
     //
     inline friend void sc_trace(sc_trace_file * tf, const btb_out_t & object, const std::string & in_name) {
         sc_trace(tf, object.btb_valid, in_name + std::string(".btb_valid"));
+        sc_trace(tf, object.ras_valid, in_name + std::string(".ras_valid"));
         sc_trace(tf, object.bta, in_name + std::string(".bta"));
     }
 
@@ -1739,7 +1756,86 @@ struct btb_out_t {
         const btb_out_t & object) {
         os << "(";
         os << object.btb_valid;
+        os << object.ras_valid;
         os << object.bta;
+        os << ")";
+        return os;
+    }
+
+};
+#endif
+
+// ------------ ras_data_t
+#ifndef ras_data_t_SC_WRAPPER_TYPE
+#define ras_data_t_SC_WRAPPER_TYPE 1
+
+struct ras_data_t {
+    //
+    // Member declarations.
+    //
+    bool valid;
+    ac_int < PC_LEN, false > pc;
+
+    static const int width = 1 + PC_LEN;
+    //
+    // Default constructor.
+    //
+    ras_data_t() {
+        valid = false;
+        pc = 0;
+    }
+
+    //
+    // Copy constructor.
+    //
+    ras_data_t(const ras_data_t &other) {
+        valid = other.valid;
+        pc = other.pc;
+    }
+
+    //
+    // Comparison operator.
+    //
+    inline bool operator == (const ras_data_t &other) {
+        if (!(valid == other.valid))
+            return false;
+        if (!(pc == other.pc))
+            return false;
+        return true;
+    }
+
+    //
+    // Assignment operator from ras_data_t.
+    //
+    inline ras_data_t & operator = (const ras_data_t &other) {
+        valid = other.valid;
+        pc = other.pc;
+        
+        return *this;
+    }
+
+    template < unsigned int Size >
+        void Marshall(Marshaller < Size > & m) {
+            m & valid;
+            m & pc;
+        }
+
+    //
+    // sc_trace function.
+    //
+    inline friend void sc_trace(sc_trace_file * tf, const ras_data_t & object, const std::string & in_name) {
+        sc_trace(tf, object.valid, in_name + std::string(".valid"));
+        sc_trace(tf, object.pc, in_name + std::string(".pc"));
+    }
+
+    //
+    // stream operator.
+    //
+    inline friend ostream & operator << (ostream & os,
+        const ras_data_t & object) {
+        os << "(";
+        os << object.valid;
+        os << object.pc;
         os << ")";
         return os;
     }

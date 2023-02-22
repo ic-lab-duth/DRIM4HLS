@@ -74,6 +74,10 @@
 #define WEAK_NON_TAKEN 1 // Branches with certainty of <= WEAK_NON_TAKEN are not taken
 #define STRONG_TAKEN 3 // Maximum value for prediction bits
 
+// RAS directives
+#define RAS_ENTRIES 4
+// ( (int) log2( RAS_ENTRIES ) )
+#define RAS_POINTER_SIZE 2
 // Dbg directives.
 
 #define INTERNAL_PROG // When on specifies the program to execute as an array in the fetch stage (not for production).
