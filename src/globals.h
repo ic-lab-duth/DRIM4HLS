@@ -13,8 +13,11 @@
 
 // Miscellanous sizes. Most of these can be changed to obtain new architectures.
 #define XLEN        32      // Register width. 32 or 64. Currently only 32 is supported.
+#define FLEN        32      // Floating register width. 32 or 64. Currently only 32 is supported.
 #define REG_NUM     32      // Number of registers in regfile (x0-x31)    // CONST
+#define FREG_NUM    32      // Number of floating registers in regfile (f0-f31)    // CONST
 #define REG_ADDR    5       // Number of reg file address lines   // CONST
+#define FREG_ADDR   5       // Number of floating reg file address lines   // CONST
 #define IMEM_SIZE   2048    // Size of instruction memory
 #define DMEM_SIZE   2048    // Size of data memory
 #define DATA_SIZE   32      // Size of data in DMEM   // CONST
@@ -41,10 +44,14 @@
 #define INSN_LEN    32
 #define OPCODE_SIZE 5       // Note: in reality opcodes are on 7 bits but bits [1:0] are statically at '1'. This gives us a saving of approximately 300 in 'Total Area' of the fedec stage.
 #define FUNCT7_SIZE 7
+#define FUNCT5_SIZE 5
 #define FUNCT3_SIZE 3
+#define FMT 		2
 #define RS1_SIZE    5
 #define RS2_SIZE    5
+#define RS3_SIZE    5
 #define RD_SIZE     5
+#define RM_SIZE     3
 #define IMM_ITYPE   12	// imm[11:0]
 #define IMM_STYPE1  7	// imm[11:5]
 #define IMM_STYPE2  5	// imm[4:0]
@@ -121,6 +128,39 @@
 
 #define OPC_JALR    25         // Original value is 103, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
 
+#define OPC_FADDS   20         // Original value is 83, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
+#define OPC_FSUBS   OPC_FADDS 
+#define OPC_FMULS	OPC_FADDS
+#define OPC_FDIVS	OPC_FADDS
+#define OPC_FMINS	OPC_FADDS
+#define OPC_FMAXS	OPC_FADDS
+#define OPC_FSQRTS	OPC_FADDS
+#define OPC_FCVTWS	OPC_FADDS
+#define OPC_FCVTWUS	OPC_FADDS
+#define OPC_FCVTSW	OPC_FADDS
+#define OPC_FCVTSWU	OPC_FADDS
+#define OPC_FSGNJS	OPC_FADDS
+#define OPC_FSGNJNS	OPC_FADDS
+#define OPC_FSGNJXS	OPC_FADDS
+#define OPC_FMVXW	OPC_FADDS
+#define OPC_FMVWX	OPC_FADDS
+#define OPC_FLTS	OPC_FADDS
+#define OPC_FLES	OPC_FADDS
+#define OPC_FEQS	OPC_FADDS
+#define OPC_FCLASSS	OPC_FADDS
+
+#define OPC_FMADDS	16		   // Original value is 67, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
+
+#define OPC_FNMADDS	19		   // Original value is 79, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
+
+#define OPC_FMSUBS	17		   // Original value is 71, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
+
+#define OPC_FNMSUBS	18		   // Original value is 75, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
+
+#define OPC_FLW   1			  // Original value is 7, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
+
+#define OPC_FSW   9			  // Original value is 39, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
+
 #define OPC_SYSTEM  28         // Original value is 115, but we trim the opcode's LSBs which are statically at 2'b11 for all instructions.
 #define OPC_EBREAK  OPC_SYSTEM
 #define OPC_ECALL   OPC_SYSTEM
@@ -130,6 +170,13 @@
 #define OPC_CSRRWI   OPC_SYSTEM
 #define OPC_CSRRSI   OPC_SYSTEM
 #define OPC_CSRRCI   OPC_SYSTEM
+#define OPC_FRCSR    OPC_SYSTEM
+#define OPC_FSCSR    OPC_SYSTEM
+#define OPC_FRRM     OPC_SYSTEM
+#define OPC_FSRM     OPC_SYSTEM
+#define OPC_FRFLAGS  OPC_SYSTEM
+#define OPC_FSRMI    OPC_SYSTEM
+#define OPC_FSFLAGSI OPC_SYSTEM	
 
 /* Funct3 as integers. For control word generation switch case. */
 #define FUNCT3_ADD  0
@@ -191,6 +238,38 @@
 #define FUNCT3_CSRRSI  	6
 #define FUNCT3_CSRRCI  	7
 
+/* Funct5 as integers. For control word generation switch case. */
+#define FUNCT5_FADDS	0
+
+#define FUNCT5_FSUBS	1
+
+#define FUNCT5_FMULS	2
+#define FUNCT5_FDIVS	3
+
+#define FUNCT5_FMINS	5
+#define FUNCT5_FMAXS	FUNCT5_FMINS
+
+#define FUNCT5_FSQRTS	11
+
+#define FUNCT5_FCVTWS	24
+#define FUNCT5_FCVTWUS	FUNCT5_FCVTWS
+
+#define FUNCT5_FCVTSW	26
+#define FUNCT5_FCVTSWU	FUNCT5_FCVTSW
+
+#define FUNCT5_FSGNJS	4
+#define FUNCT5_FSGNJNS	FUNCT5_FSGNJS
+#define FUNCT5_FSGNJXS	FUNCT5_FSGNJS
+
+#define FUNCT5_FMVXW	28
+#define FUNCT5_FCLASS	28
+
+#define FUNCT5_FMVWX	30
+
+#define FUNCT5_FEQS		20
+#define FUNCT5_FLES		FUNCT5_FEQS
+#define FUNCT5_FLTS		FUNCT5_FEQS
+
 /* Funct7 as integers. For control word generation switch case. */
 #define FUNCT7_ADD      0
 #define FUNCT7_SLL      FUNCT7_ADD
@@ -244,6 +323,40 @@
 #define ALUOP_REM       17
 #define ALUOP_REMU      18
 
+#define ALUOP_FADD      1
+#define ALUOP_FMADD     2
+#define ALUOP_FNMADD    3
+#define ALUOP_FMSUBS    4
+#define ALUOP_FNMSUBS   5
+#define ALUOP_FSUB      6
+#define ALUOP_FMUL      7
+#define ALUOP_FDIV      8
+#define ALUOP_FMIN      9
+#define ALUOP_FMAX      10
+#define ALUOP_FSQRT    	11
+#define ALUOP_FCVTWS    12
+#define ALUOP_FCVTWUS   13
+#define ALUOP_FCVTSW    14
+#define ALUOP_FCVTSWU   15
+#define ALUOP_FSGNJ     16
+#define ALUOP_FSGNJN    17
+#define ALUOP_FSGNJX    18
+#define ALUOP_FMVXW     19
+#define ALUOP_FCLASS    20
+#define ALUOP_FMVWX     21
+#define ALUOP_FEQ       22
+#define ALUOP_FLT       23
+#define ALUOP_FLE       24
+
+#define ALUOP_FSCSR     26
+#define ALUOP_FRCSR     27
+#define ALUOP_FRRM      28
+#define ALUOP_FSRM      29
+#define ALUOP_FRFLAGS   30
+#define ALUOP_FSFLAGS   31
+#define ALUOP_FSRMI     32
+#define ALUOP_FSFLAGSI  33
+
 // Integer immediate operation's aluops coincide with their r-type counterparts
 #define ALUOP_ADDI ALUOP_ADD
 #define ALUOP_SLTI ALUOP_SLT
@@ -286,6 +399,31 @@
 #define SH_STORE 1
 #define SW_STORE 2
 
+/* FMTS */
+#define FMT_S	0
+#define FMT_D	1
+#define FMT_Q	3
+
+/* FRMS */
+#define FRM_RNE		0
+#define FRM_MIN		FRM_RNE
+#define FRM_J		FRM_RNE
+#define FRM_FMVXW	FRM_RNE
+#define FRM_FLE		FRM_RNE
+
+#define FRM_RTZ		1
+#define FRM_MAX		FRM_RTZ
+#define FRM_JN		FRM_RTZ
+#define FRM_CLASS	FRM_RTZ
+#define FRM_FLT		FRM_RTZ
+
+#define FRM_RDN		2
+#define FRM_JX		FRM_RDN
+#define FRM_FEQ		FRM_RDN
+
+#define FRM_RUP		3
+#define FRM_RMM		4
+
 /* Trap causes: see page 35 of RISC-V privileged ISA draft V1.10. */
 #define NULL_CAUSE      10  // 10 is actually reserved in the specs but we use it to indicate no cause.
 #define EBREAK_CAUSE    3
@@ -316,5 +454,15 @@
 #define MIMPID_I      8
 #define MINSTRET_I    9
 #define MHARTID_I     10
+
+#define CACHE_HIT true
+#define CACHE_MISS false
+
+/* NaN for single precision floating point operations */
+#define NaN			  2143289344
+
+/* Used in the FCVT.W.S and FCVT.WU.S instructions to describe if integer is unsigned or not.*/
+#define RS2_W		  0	
+#define RS2_WU		  1	
 
 #endif

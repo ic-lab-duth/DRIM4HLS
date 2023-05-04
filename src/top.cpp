@@ -1,11 +1,16 @@
 #include <iostream>
+#include <math.h>
 
 #include "drim4hls_datatypes.h"
 #include "defines.h"
 #include "globals.h"
 #include "drim4hls.h"
+#include "fast_float.h"
 
 #include <mc_scverify.h>
+#include <ac_int.h>
+
+typedef ffp32 T;
 
 class Top: public sc_module {
     public:
@@ -38,15 +43,17 @@ class Top: public sc_module {
     Connections::Combinational < dmem_out_t > CCS_INIT_S1(dmem2wb_ch);
     Connections::Combinational < dmem_in_t > CCS_INIT_S1(wb2dmem_ch);
 
-    sc_uint < XLEN > imem[ICACHE_SIZE];
+    ac_int < XLEN, false > imem[ICACHE_SIZE];
 
     imem_out_t imem_dout;
     imem_in_t imem_din;
 
-    sc_uint < XLEN > dmem[DCACHE_SIZE];
+    ac_int < XLEN, false > dmem[DCACHE_SIZE];
 
     dmem_out_t dmem_dout;
     dmem_in_t dmem_din;
+    
+    int wait_stalls;
 
     const std::string testing_program;
 
@@ -95,11 +102,23 @@ class Top: public sc_module {
         IMEM_BODY: while (true) {
             imem_din = fe2imem_ch.Pop();
 
-            unsigned int addr_aligned = imem_din.instr_addr >> 2;
-            
-            imem_dout.instr_data = imem[addr_aligned];
+            sc_uint < XLEN > addr = imem_din.instr_addr.to_uint();
+			//std::cout << "fetch instr " << endl;
 			
-            unsigned int random_stalls = (rand() % 2) + 1;
+			unsigned int offset_lenght = pow(2 , ICACHE_OFFSET_WIDTH);
+			            
+            for (int i = 0; i < offset_lenght; i++) {
+				if (ICACHE_OFFSET_WIDTH) {
+					addr.range(ICACHE_OFFSET_WIDTH - 1, 0) = (sc_uint < ICACHE_OFFSET_WIDTH >) i;                        
+                }
+				//std::cout << "imem addr= " << addr << endl;
+
+                imem_dout.instr_data.set_slc(i*XLEN, imem[addr]);
+                //std::cout << "imem[" << addr << "]=" << imem[addr] << endl;
+			}
+
+			
+            unsigned int random_stalls = 1;
             wait(random_stalls);
 
             imem2de_ch.Push(imem_dout);
@@ -112,29 +131,52 @@ class Top: public sc_module {
         DMEM_RST: {
             wb2dmem_ch.ResetRead();
             dmem2wb_ch.ResetWrite();
-
+			wait_stalls = 0;
             wait();
         }
         DMEM_BODY: while (true) {
             dmem_din = wb2dmem_ch.Pop();
-            unsigned int addr = dmem_din.data_addr;
 
-            unsigned int random_stalls = (rand() % 8) + 1;
-            //std::cout << "wait=" << random_stalls << endl;
+			sc_uint < XLEN > addr = dmem_din.data_addr.to_uint();
+			sc_uint < XLEN > write_addr = dmem_din.write_addr.to_uint();
+			
+			unsigned int addr_lenght = DCACHE_TAG_WIDTH + DCACHE_INDEX_WIDTH;
+            unsigned int offset_lenght = pow(2 , DCACHE_OFFSET_WIDTH);
+            sc_uint < DCACHE_INDEX_WIDTH > index = addr.range(DCACHE_INDEX_WIDTH + DCACHE_OFFSET_WIDTH - 1, DCACHE_OFFSET_WIDTH);
+            
+            unsigned int random_stalls = 15;
+            wait_stalls += random_stalls;
             wait(random_stalls);
              
             if (dmem_din.read_en) {
+				//std::cout << "dmem read" << endl;
 
-                dmem_dout.data_out = dmem[addr];
+                for (int i = 0; i < offset_lenght; i++) {
+                    if (DCACHE_OFFSET_WIDTH) {
+                        addr.range(DCACHE_OFFSET_WIDTH - 1, 0) = (sc_uint < DCACHE_OFFSET_WIDTH >) i;                        
+                    }
+                    //std::cout << "dmem addr= " << addr << endl;
+
+                    dmem_dout.data_out.set_slc(i*XLEN, dmem[addr]);
+                    //std::cout << "dmem[" << addr << "]=" << dmem[addr] << endl;
+                }
+                
                 dmem2wb_ch.Push(dmem_dout);
-            } else if (dmem_din.write_en) {
-
-                dmem[addr] = dmem_din.data_in;
-                dmem_dout.data_out = dmem_din.data_in;
+            } 
+            if (dmem_din.write_en) {
+				//std::cout << "dmem write" << endl;
+                
+                for (int i = 0; i < offset_lenght; i++) {
+                    if (DCACHE_OFFSET_WIDTH) {
+                        write_addr.range(DCACHE_OFFSET_WIDTH - 1, 0) = (sc_uint < DCACHE_OFFSET_WIDTH >) i;
+                    }
+                    //std::cout << "dmem addr= " << write_addr << endl;
+                    dmem[write_addr] = dmem_din.data_in.slc<XLEN>(i*XLEN);
+                    //std::cout << "dmem[" << write_addr << "]=" << dmem[write_addr] << endl;
+                }
             }
 
             // REMOVE
-            //std::cout << "dmem[" << addr << "]=" << dmem[addr] << endl;
             wait();
         }
 
@@ -146,7 +188,8 @@ class Top: public sc_module {
         load_program.open(testing_program, std::ifstream:: in );
         unsigned index;
         unsigned address;
-
+        unsigned data;
+        
         while (load_program >> std::hex >> address) {
 
             index = address >> 2;
@@ -155,7 +198,9 @@ class Top: public sc_module {
                 sc_stop();
                 return;
             }
-            load_program >> std::hex >> imem[index];
+            load_program >> data;
+            //load_program >> std::hex >> imem[index];
+            imem[index] = (ac_int<32, false>) data;
             std::cout << "imem[" << index << "]=" << imem[index] << endl;
             dmem[index] = imem[index];
         }
@@ -174,10 +219,13 @@ class Top: public sc_module {
         
         sc_stop();
         int dmem_index;
-        for (dmem_index = 0; dmem_index < 400; dmem_index++) {
-            std::cout << "dmem[" << dmem_index << "]=" << dmem[dmem_index] << endl;
+        for (dmem_index = 0; dmem_index < 600; dmem_index++) {
+			T fast_float = dmem[dmem_index];
+			float float_ieee = fast_float.to_float();
+            std::cout << "dmem[" << dmem_index << "]=" << float_ieee << endl;
+            //std::cout << "dmem[" << dmem_index << "]=" << dmem[dmem_index] << endl;
         }
-
+		std::cout << "wait stalls " << wait_stalls << endl;
         long icount_end, j_icount_end, b_icount_end, m_icount_end, o_icount_end, pre_b_icount_end;
 
         icount_end = icount.read();
@@ -206,9 +254,9 @@ int sc_main(int argc, char * argv[]) {
     //     return -1;
     // }
 
-    std::string testing_program = argv[1];
+    //std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    //std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS/examples/binary_search/hello.txt";
+    std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS_fp_2/examples/insertion_sort_fp/notmain.txt";
 
     Top top("top", testing_program);
     sc_start();

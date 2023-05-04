@@ -20,6 +20,7 @@
 #include "fetch.h"
 #include "decode.h"
 #include "execute.h"
+#include "execute_fp.h"
 #include "writeback.h"
 
 #include "drim4hls_datatypes.h"
@@ -28,7 +29,7 @@
 
 #include <mc_connections.h>
 
-#pragma hls_design_top
+#pragma hls_design top
 SC_MODULE(drim4hls) {
     public:
     // Declaration of clock and reset signals
@@ -48,10 +49,11 @@ SC_MODULE(drim4hls) {
     // Inter-stage Channels and ports.
     Connections::Combinational < fe_out_t > CCS_INIT_S1(fe2de_ch);
     Connections::Combinational < de_out_t > CCS_INIT_S1(de2exe_ch);
+    Connections::Combinational < de_out_t > CCS_INIT_S1(de2exefp_ch);
     Connections::Combinational < fe_in_t > CCS_INIT_S1(de2fe_ch);
     Connections::Combinational < mem_out_t > CCS_INIT_S1(wb2de_ch); // Writeback loop
     Connections::Combinational < exe_out_t > CCS_INIT_S1(exe2mem_ch);
-    Connections::Combinational < imem_out_t > CCS_INIT_S1(fe2de_imem_ch);
+    Connections::Combinational < exe_out_t > CCS_INIT_S1(exefp2mem_ch);
 
     Connections::In < imem_out_t > CCS_INIT_S1(imem2de_data);
     Connections::Out < imem_in_t > CCS_INIT_S1(fe2imem_data);
@@ -61,11 +63,13 @@ SC_MODULE(drim4hls) {
 
     // Forwarding
     Connections::Combinational < reg_forward_t > CCS_INIT_S1(fwd_exe_ch);
+    Connections::Combinational < reg_forward_t > CCS_INIT_S1(fwd_exefp_ch);
 
     // Instantiate the modules
     fetch CCS_INIT_S1(fe);
     decode CCS_INIT_S1(dec);
     execute CCS_INIT_S1(exe);
+    execute_fp CCS_INIT_S1(exe_fp);
     writeback CCS_INIT_S1(wb);
 
     SC_CTOR(drim4hls): clk("clk"),
@@ -73,10 +77,13 @@ SC_MODULE(drim4hls) {
     program_end("program_end"),
     fe2de_ch("fe2de_ch"),
     de2exe_ch("de2exe_ch"),
+    de2exefp_ch("de2exefp_ch"),
     de2fe_ch("de2fe_ch"),
     exe2mem_ch("exe2mem_ch"),
+    exefp2mem_ch("exefp2mem_ch"),
     wb2de_ch("wb2de_ch"),
     fwd_exe_ch("fwd_exe_ch"),
+    fwd_exefp_ch("fwd_exefp_ch"),
     imem2de_data("imem2de_data"),
     fe2imem_data("fe2imem_data"),
     dmem2wb_data("dmem2wb_data"),
@@ -84,12 +91,12 @@ SC_MODULE(drim4hls) {
     fe("Fetch"),
     dec("Decode"),
     exe("Execute"),
+    exe_fp("Execute FP"),
     wb("Writeback") {
         // FETCH
         fe.clk(clk);
         fe.rst(rst);
         fe.dout(fe2de_ch);
-        fe.imem_de(fe2de_imem_ch);
         fe.imem_din(fe2imem_data);
         fe.imem_dout(imem2de_data);
         fe.fetch_din(de2fe_ch);
@@ -98,17 +105,18 @@ SC_MODULE(drim4hls) {
         dec.clk(clk);
         dec.rst(rst);
         dec.dout(de2exe_ch);
+        dec.dout_fp(de2exefp_ch);
         dec.feed_from_wb(wb2de_ch);
         dec.fetch_din(fe2de_ch);
         dec.fetch_dout(de2fe_ch);
         dec.program_end(program_end);
         dec.fwd_exe(fwd_exe_ch);
+        dec.fwd_exefp(fwd_exefp_ch);
         dec.icount(icount);
         dec.j_icount(j_icount);
         dec.b_icount(b_icount);
         dec.m_icount(m_icount);
         dec.o_icount(o_icount);
-        dec.imem_out(fe2de_imem_ch);
 
         // EXE
         exe.clk(clk);
@@ -116,11 +124,19 @@ SC_MODULE(drim4hls) {
         exe.din(de2exe_ch);
         exe.dout(exe2mem_ch);
         exe.fwd_exe(fwd_exe_ch);
+        
+        // EXE FP
+        exe_fp.clk(clk);
+        exe_fp.rst(rst);
+        exe_fp.din(de2exefp_ch);
+        exe_fp.dout(exefp2mem_ch);
+        exe_fp.fwd_exe(fwd_exefp_ch);
 
         // MEM
         wb.clk(clk);
         wb.rst(rst);
         wb.din(exe2mem_ch);
+        wb.din_fp(exefp2mem_ch);
         wb.dout(wb2de_ch);
 
         wb.dmem_in(wb2dmem_data);
