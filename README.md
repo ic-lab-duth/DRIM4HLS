@@ -4,13 +4,22 @@ DRIM4HLS is the first model of a 32b RISC-V processor designed with SystemC and 
 
 The organization of the SystemC model of DRIM4HLS is shown in the following figure
 
-![overview](./images/drim4hls-blocks.png)
+![overview](./images/drim4hls-fp.png)
 
 The blue blocks are part of the processor while the instruction and data memories are used only for simulation. No specific latency is assumed by the memories. All blocks of the processor communicate using the Connections flow-controlled channels (ready/valid). In this way the stalling of instruction execution that naturally appears in all pipelined processors can be smoothly handled by the flow control mechanism inherent in the operation of Connections.
 
 DRIM4HLS can be simulated using open-source libraries without requiring any other tools.
 
 In the future the baseline pipelined processor will be enhanced with multiple architectural features such as branch prediction and caches that will improve its performance.
+
+## Repository directory
+
+The repository contains various versions of the processor. Check the respective folder for a schema of the particular version.
+
+`core/`: contains the core version of the processor
+`caches/`: in addition to the core functionality of the processor, N-associative instruction/data caches are implemented
+`prediction/`: in addition to the cached version of the processor, branch prediction and a return address stack for jump instructions is provided
+`floating_point/`: in addition to the version of the processor with branch/jump prediction, support for floating point instructions is provided 
 
 ## Getting started
 
@@ -19,7 +28,6 @@ In order to simulate DRIM4HLS you would need gcc (testted on version 9.4) and Sy
 To synthesize the design to RTL you would need a license for Catapult HLS. Also for simulating RTL any logic-level simulator will suffice. We synthesized the processor with Catapult HLS 2021 and simulatd the RTL with QuestaSim 2019.3_1. 
 
 The model of DRIM4HLS already incorporates all the pieces needed to run the post-synthesis SCVerify flow of Catapult for automatic RTL verification. 
-
 
 ## Compile
 
@@ -31,10 +39,20 @@ A `Makefile` is provided inside the project directory in order to easily compile
 * `AC_TYPES_HOME`
 
 Build the SystemC simulation executable by typing:
-   make build
+
+    make build
 
 Run the SC simulation by typing:
-   ./sim_sc
+
+    ./sim_sc
+
+## Synthesize
+
+In each version of the processor a `.tcl` script is provided containing all the necessary instructions for compiling, scheduling and synthesizing the DRIM4HLS processor using Catapult.
+
+To use the `.tcl` script just run:
+
+    catapult -f <processor_version>/go_hls_ic.tcl
    
 ## Simulating RISCV binaries
 
