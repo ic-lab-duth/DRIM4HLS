@@ -12,17 +12,17 @@ DRIM4HLS can be simulated using open-source libraries without requiring any othe
 
 In the future the baseline pipelined processor will be enhanced with multiple architectural features such as branch prediction and caches that will improve its performance.
 
-## Repository directory
+## Repository Directory Structure
 
 The repository contains various versions of the processor. Check the respective folder for a schema of the particular version.
 
-`core/`: contains the core version of the processor.  
+`core/` - contains the core version of the processor.  
 
-`caches/`: in addition to the core functionality of the processor, N-associative instruction/data caches are implemented.  
+`caches/` - in addition to the core functionality of the processor, N-associative instruction/data caches are implemented.  
 
-`prediction/`: in addition to the cached version of the processor, branch prediction and a return address stack for jump instructions is provided.  
+`prediction/` - in addition to the cached version of the processor, branch prediction and a return address stack for jump instructions is provided.  
 
-`floating_point/`: in addition to the version of the processor with branch/jump prediction, support for floating point instructions is provided.  
+`floating_point/` - in addition to the version of the processor with branch/jump prediction, support for floating point instructions is provided.  
 
 ## Getting started
 
