@@ -4,7 +4,7 @@ DRIM4HLS is the first model of a 32b RISC-V processor designed with SystemC and 
 
 The organization of the SystemC model of DRIM4HLS is shown in the following figure
 
-![overview](./images/drim4hls_fp.png)
+![overview](../images/drim4hls_fp.png)
 
 The blue blocks are part of the processor while the instruction and data memories are used only for simulation. No specific latency is assumed by the memories. All blocks of the processor communicate using the Connections flow-controlled channels (ready/valid). In this way the stalling of instruction execution that naturally appears in all pipelined processors can be smoothly handled by the flow control mechanism inherent in the operation of Connections.
 
