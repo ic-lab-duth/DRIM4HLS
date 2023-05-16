@@ -28,10 +28,10 @@ struct de_in_t {
     //
     // Member declarations.
     //
-    sc_bv < 1 > jump;
-    sc_bv < 1 > branch;
-    sc_bv < PC_LEN > jump_address;
-    sc_bv < PC_LEN > branch_address;
+    sc_uint < 1 > jump;
+    sc_uint < 1 > branch;
+    sc_uint < PC_LEN > jump_address;
+    sc_uint < PC_LEN > branch_address;
 
     static const int width = 2 + 2 * PC_LEN;
 
@@ -39,10 +39,10 @@ struct de_in_t {
     // Default constructor.
     //
     de_in_t() {
-        jump = "0";
-        branch = "0";
-        jump_address = (sc_bv < PC_LEN > ) 0;
-        branch_address = (sc_bv < PC_LEN > ) 0;
+        jump = 0;
+        branch = 0;
+        jump_address = 0;
+        branch_address = 0;
     }
 
     //
@@ -135,7 +135,7 @@ struct fe_out_t {
     // Default constructor.
     //
     fe_out_t() {
-        pc = (sc_uint < PC_LEN > ) 0;
+        pc = 0;
     }
 
     //
@@ -201,17 +201,17 @@ struct de_out_t {
     //
     // Member declarations.
     //
-    sc_bv < 1 > regwrite;
-    sc_bv < 1 > memtoreg;
-    sc_bv < 3 > ld;
-    sc_bv < 2 > st;
-    sc_bv < ALUOP_SIZE > alu_op;
-    sc_bv < ALUSRC_SIZE > alu_src;
-    sc_bv < XLEN > rs1;
-    sc_bv < XLEN > rs2;
-    sc_bv < REG_ADDR > dest_reg;
-    sc_bv < PC_LEN > pc;
-    sc_bv < XLEN - 12 > imm_u;
+    sc_uint < 1 > regwrite;
+    sc_uint < 1 > memtoreg;
+    sc_uint < 3 > ld;
+    sc_uint < 2 > st;
+    sc_uint < ALUOP_SIZE > alu_op;
+    sc_uint < ALUSRC_SIZE > alu_src;
+    sc_int < XLEN > rs1;
+    sc_int < XLEN > rs2;
+    sc_uint < REG_ADDR > dest_reg;
+    sc_uint < PC_LEN > pc;
+    sc_uint < XLEN - 12 > imm_u;
     sc_uint < TAG_WIDTH > tag;
 
     static
@@ -221,18 +221,18 @@ struct de_out_t {
     // Default constructor.
     //
     de_out_t() {
-        regwrite = "0";
-        memtoreg = "0";
+        regwrite = 0;
+        memtoreg = 0;
         ld = NO_LOAD;
         st = NO_STORE;
-        alu_op = (sc_bv < ALUOP_SIZE > ) 0;
-        alu_src = (sc_bv < ALUSRC_SIZE > ) 0;
-        rs1 = (sc_bv < XLEN > ) 0;
-        rs2 = (sc_bv < XLEN > ) 0;
-        dest_reg = (sc_bv < REG_ADDR > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
-        imm_u = (sc_bv < XLEN - 12 > ) 0;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
+        alu_op = 0;
+        alu_src = 0;
+        rs1 = 0;
+        rs2 = 0;
+        dest_reg = 0;
+        pc = 0;
+        imm_u = 0;
+        tag = 0;
     }
 
     //
@@ -377,15 +377,15 @@ struct exe_out_t // TODO: fix all sizes
     //
     // Member declarations.
     //
-    sc_bv < 3 > ld;
-    sc_bv < 2 > st;
-    sc_bv < 1 > memtoreg;
-    sc_bv < 1 > regwrite;
-    sc_bv < XLEN > alu_res;
-    sc_bv < DATA_SIZE > mem_datain;
-    sc_bv < REG_ADDR > dest_reg;
+    sc_uint < 3 > ld;
+    sc_uint < 2 > st;
+    sc_uint < 1 > memtoreg;
+    sc_uint < 1 > regwrite;
+    sc_uint < XLEN > alu_res;
+    sc_int < DATA_SIZE > mem_datain;
+    sc_uint < REG_ADDR > dest_reg;
     sc_uint < TAG_WIDTH > tag;
-    sc_bv < PC_LEN > pc;
+    sc_uint < PC_LEN > pc;
 
     static const int width = 3 + 2 + 1 + 1 + XLEN + DATA_SIZE + REG_ADDR + TAG_WIDTH + PC_LEN;
 
@@ -395,13 +395,13 @@ struct exe_out_t // TODO: fix all sizes
     exe_out_t() {
         ld = NO_LOAD;
         st = NO_STORE;
-        memtoreg = "0";
-        regwrite = "0";
-        alu_res = (sc_bv < XLEN > ) 0;
-        mem_datain = (sc_bv < DATA_SIZE > ) 0;
-        dest_reg = (sc_bv < REG_ADDR > ) 0;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
+        memtoreg = 0;
+        regwrite = 0;
+        alu_res = 0;
+        mem_datain = 0;
+        dest_reg = 0;
+        tag = 0;
+        pc = 0;
     }
 
     //
@@ -522,22 +522,22 @@ struct mem_out_t {
     //
     // Member declarations.
     //
-    sc_bv < 1 > regwrite;
-    sc_bv < REG_ADDR > regfile_address;
-    sc_bv < XLEN > regfile_data;
+    sc_uint < 1 > regwrite;
+    sc_uint < REG_ADDR > regfile_address;
+    sc_int < XLEN > regfile_data;
     sc_uint < TAG_WIDTH > tag;
-    sc_bv < PC_LEN > pc;
+    sc_uint < PC_LEN > pc;
 
     static const int width = 1 + REG_ADDR + XLEN + TAG_WIDTH + PC_LEN;
     //
     // Default constructor.
     //
     mem_out_t() {
-        regwrite = "0";
-        regfile_address = (sc_bv < REG_ADDR > ) 0;
-        regfile_data = (sc_bv < XLEN > ) 0;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
+        regwrite = 0;
+        regfile_address = 0;
+        regfile_data = 0;
+        tag = 0;
+        pc = 0;
     }
 
     //
@@ -627,11 +627,11 @@ struct reg_forward_t {
     //
     // Member declarations.
     //
-    sc_bv < XLEN > regfile_data;
+    sc_int < XLEN > regfile_data;
     bool ldst;
     bool sync_fewb;
     sc_uint < TAG_WIDTH > tag;
-    sc_bv < PC_LEN > pc;
+    sc_uint < PC_LEN > pc;
 
     static
     const int width = XLEN + 1 + 1 + TAG_WIDTH + PC_LEN;
@@ -639,11 +639,11 @@ struct reg_forward_t {
     // Default constructor.
     //
     reg_forward_t() {
-        regfile_data = (sc_bv < XLEN > ) 0;
+        regfile_data = 0;
         ldst = false;
         sync_fewb = false;
-        tag = (sc_uint < TAG_WIDTH > ) 0;
-        pc = (sc_bv < PC_LEN > ) 0;
+        tag = 0;
+        pc = 0;
     }
 
     //
@@ -738,14 +738,14 @@ struct imem_in_t {
     //
     // Member declarations.
     //
-    sc_int < XLEN > instr_addr;
+    sc_uint < XLEN > instr_addr;
 
     static const int width = XLEN;
     //
     // Default constructor.
     //
     imem_in_t() {
-        instr_addr = (sc_int < XLEN > ) 0;
+        instr_addr = 0;
     }
 
     //
@@ -813,7 +813,7 @@ struct imem_out_t {
     // Default constructor.
     //
     imem_out_t() {
-        instr_data = (sc_uint < XLEN > ) 0;
+        instr_data = 0;
     }
 
     //
@@ -886,8 +886,8 @@ struct dmem_in_t {
     // Default constructor.
     //
     dmem_in_t() {
-        data_addr = (sc_uint < XLEN > ) 0;
-        data_in = (sc_uint < XLEN > ) 0;
+        data_addr = 0;
+        data_in = 0;
         read_en = false;
         write_en = false;
     }
@@ -979,7 +979,7 @@ struct dmem_out_t {
     // Default constructor.
     //
     dmem_out_t() {
-        data_out = (sc_uint < XLEN > ) 0;
+        data_out = 0;
     }
 
     //
@@ -1042,7 +1042,7 @@ struct fe_in_t {
     //
     bool freeze;
     bool redirect;
-    sc_bv < PC_LEN > address;
+    sc_int < PC_LEN > address;
 
     static const int width = 1 + 1 + PC_LEN;
     //
@@ -1051,7 +1051,7 @@ struct fe_in_t {
     fe_in_t() {
         freeze = false;
         redirect = false;
-        address = sc_bv < PC_LEN > (0);
+        address = 0;
     }
 
     //

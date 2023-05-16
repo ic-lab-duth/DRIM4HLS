@@ -59,17 +59,14 @@ SC_MODULE(writeback) {
     sc_in < bool > CCS_INIT_S1(rst);
 	
     // Member variables
-    bool freeze;
-    bool loading_data;
-    bool storing_data;
-
     exe_out_t input;
     dmem_in_t dmem_dout;
     dmem_out_t dmem_din;
     mem_out_t output;
 
-    sc_bv < DATA_SIZE > mem_dout;
-
+    sc_uint < DATA_SIZE > mem_dout;
+    sc_uint < XLEN > dmem_data;
+    
     // Constructor
     SC_CTOR(writeback): din("din"), dout("dout"), dmem_in("dmem_in"), dmem_out("dmem_out"), clk("clk"), rst("rst") {
         SC_THREAD(writeback_th);
@@ -86,11 +83,13 @@ SC_MODULE(writeback) {
             dmem_in.Reset();
 			
             // Write dummy data to decode feedback.
-            output.regfile_address = "00000";
-            output.regfile_data = (sc_bv < XLEN > ) 0;
-            output.regwrite = "0";
+            output.regfile_address = 0;
+            output.regfile_data = 0;
+            output.regwrite = 0;
             output.tag = 0;
-
+            
+            dmem_data = 0;
+            mem_dout = 0;
         }
 
         #pragma hls_pipeline_init_interval 1
@@ -107,27 +106,27 @@ SC_MODULE(writeback) {
                 writeback_out_t.load = "NO_LOAD";
                 writeback_out_t.store = "NO_STORE";
             #endif
-
-            sc_uint < XLEN > dmem_data;
+            
             // Compute
             // *** Memory access.
-
+			dmem_data = 0;
             // WARNING: only supporting aligned memory accesses
             // Preprocess address
 			
             unsigned int aligned_address = input.alu_res.to_uint();
-            unsigned char byte_index = (unsigned char)((aligned_address & 0x3) << 3);
-            unsigned char halfword_index = (unsigned char)((aligned_address & 0x2) << 3);
+            sc_uint< 5 > byte_index = (sc_uint< 5 >)((aligned_address & 0x3) << 3);
+            sc_uint< 5 > halfword_index = (sc_uint< 5 >)((aligned_address & 0x2) << 3);
 
             aligned_address = aligned_address >> 2;
-            sc_uint < BYTE > db;
-            sc_uint < 2 * BYTE > dh;
-            sc_uint < XLEN > dw;
+            sc_uint < BYTE > db = (sc_uint < BYTE >) 0;
+            sc_uint < 2 * BYTE > dh = (sc_uint < 2 * BYTE >) 0;
+            sc_uint < XLEN > dw = (sc_uint < XLEN >) 0;
 
             dmem_dout.data_addr = aligned_address;
 
             dmem_dout.read_en = false;
             dmem_dout.write_en = false;
+            
 
             #ifndef __SYNTHESIS__
             if (sc_uint < 3 > (input.ld) != NO_LOAD || sc_uint < 2 > (input.st) != NO_STORE) {
@@ -144,9 +143,7 @@ SC_MODULE(writeback) {
             }
             #endif
 			
-			
-            //if (sc_uint < 3 > (input.ld) != NO_LOAD && !loading_data) { // a load is requested
-            if (sc_uint < 3 > (input.ld) != NO_LOAD) { // a load is requested
+			if (input.ld != NO_LOAD) { // a load is requested
                 
                 dmem_dout.read_en = true;
                 dmem_in.Push(dmem_dout);
@@ -154,7 +151,7 @@ SC_MODULE(writeback) {
                 dmem_din = dmem_out.Pop();
                 dmem_data = dmem_din.data_out;
                 //freeze = false;
-                switch (sc_uint < 3 > (input.ld)) { // LOAD
+                switch (input.ld) { // LOAD
                 case LB_LOAD:
                     db = dmem_data.range(byte_index + BYTE - 1, byte_index);
                     mem_dout = ext_sign_byte(db);
@@ -196,6 +193,9 @@ SC_MODULE(writeback) {
 
                     break;
                 case LHU_LOAD:
+                    //dh = dmem_data.range(halfword_index + 2 * BYTE - 1, halfword_index);
+                    //dh = dmem_data.slc< 2 * BYTE >(halfword_index);
+                    //dh.set_slc(0, dmem_data.slc< 2 * BYTE >(halfword_index));
                     dh = dmem_data.range(halfword_index + 2 * BYTE - 1, halfword_index);
                     mem_dout = ext_unsign_halfword(dh);
 
@@ -214,30 +214,32 @@ SC_MODULE(writeback) {
 
                     break; // NO_LOAD
                 }
-            } else if (sc_uint < 2 > (input.st) != NO_STORE) { // a store is requested
+            } else if (input.st != NO_STORE) { // a store is requested
             
                 dmem_dout.write_en = true;
 
-                switch (sc_uint < 2 > (input.st)) { // STORE
+                switch (input.st) { // STORE
                 case SB_STORE: // store 8 bits of rs2
-                    db = input.mem_datain.range(BYTE - 1, 0).to_uint();
+					
+					db = input.mem_datain.range(BYTE - 1, 0).to_uint();
                     dmem_data.range(byte_index + BYTE - 1, byte_index) = db;
 
                     #ifndef __SYNTHESIS__
                     writeback_out_t.store_data = db;
                     writeback_out_t.store = "SB_STORE";
                     #endif
-
-                    break;
+					
+					break;
                 case SH_STORE: // store 16 bits of rs2
-                    dh = input.mem_datain.range(2 * BYTE - 1, 0).to_uint();
+					
+					dh = input.mem_datain.range(2 * BYTE - 1, 0).to_uint();
                     dmem_data.range(byte_index + BYTE - 1, byte_index) = dh;
-
+                    
                     #ifndef __SYNTHESIS__
                     writeback_out_t.store_data = dh;
                     writeback_out_t.store = "SH_STORE";
                     #endif
-
+					
                     break;
                 case SW_STORE: // store rs2
                     dw = input.mem_datain.to_uint();
@@ -247,14 +249,14 @@ SC_MODULE(writeback) {
                     writeback_out_t.store_data = dw;
                     writeback_out_t.store = "SW_STORE";
                     #endif
-
+					
                     break;
                 default:
 
                     #ifndef __SYNTHESIS__
                     writeback_out_t.store = "NO_STORE";
                     #endif
-
+					
                     break; // NO_STORE
                 }
 
@@ -266,14 +268,13 @@ SC_MODULE(writeback) {
             /* Writeback */
             output.regwrite = input.regwrite;
             output.regfile_address = input.dest_reg;
-            output.regfile_data = (input.memtoreg[0] == "1") ? mem_dout : input.alu_res;
+            output.regfile_data = (input.memtoreg[0] == 1) ? mem_dout : input.alu_res;
             output.tag = input.tag;
             output.pc = input.pc;
-				
+		
             // Put
 		    dout.Push(output);
             #ifndef __SYNTHESIS__
-            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "freeze=" << freeze << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "load= " << writeback_out_t.load << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "store= " << writeback_out_t.store << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "input.regwrite=" << input.regwrite << endl);
@@ -285,7 +286,6 @@ SC_MODULE(writeback) {
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "output.regfile_data=" << output.regfile_data << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "input.memtoreg=" << input.memtoreg << endl);
             DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << std::hex << "writeback_out_t.store_data =" << writeback_out_t.store_data  << endl);
-            DPRINT("@" << sc_time_stamp() << "\t" << name() << "\t" << "pushed to fetch=" << (!freeze && output.regwrite == "1") << endl);
             DPRINT(endl);
             #endif
             wait();
@@ -295,29 +295,41 @@ SC_MODULE(writeback) {
     /* Support functions */
 
     // Sign extend byte read from memory. For LB
-    sc_bv < XLEN > ext_sign_byte(sc_bv < BYTE > read_data) {
-        if (read_data[7] == "1")
-            return (sc_bv < BYTE * 3 > (16777216), read_data);
-        else
-            return (sc_bv < BYTE * 3 > (0), read_data);
+    sc_uint < XLEN > ext_sign_byte(sc_uint < BYTE > read_data) {
+		if (read_data[7] == 1) {
+			
+			return (sc_uint < BYTE * 3 > (16777216), read_data);
+
+		}
+		else {
+
+			return (sc_uint < BYTE * 3 > (0), read_data);
+		}
     }
 
     // Zero extend byte read from memory. For LBU
-    sc_bv < XLEN > ext_unsign_byte(sc_bv < BYTE > read_data) {
-        return (sc_bv < BYTE * 3 > (0), read_data);
+    sc_uint < XLEN > ext_unsign_byte(sc_uint < BYTE > read_data) {
+
+		return (sc_uint < BYTE * 3 > (0), read_data);       
     }
 
     // Sign extend half-word read from memory. For LH
-    sc_bv < XLEN > ext_sign_halfword(sc_bv < BYTE * 2 > read_data) {
-        if (read_data[15] == "1")
-            return (sc_bv < BYTE * 2 > (65535), read_data);
-        else
-            return (sc_bv < BYTE * 2 > (0), read_data);
+    sc_uint < XLEN > ext_sign_halfword(sc_uint < BYTE * 2 > read_data) {
+		        
+        if (read_data[15] == 1) {
+
+            return (sc_uint < BYTE * 2 > (65535), read_data);
+        }
+        else {
+
+            return (sc_uint < BYTE * 2 > (0), read_data);
+        }
     }
 
     // Zero extend half-word read from memory. For LHU
-    sc_bv < XLEN > ext_unsign_halfword(sc_bv < BYTE * 2 > read_data) {
-        return (sc_bv < BYTE * 2 > (0), read_data);
+    sc_uint < XLEN > ext_unsign_halfword(sc_uint < BYTE * 2 > read_data) {
+
+		return (sc_uint < BYTE * 2 > (0), read_data);
     }
 
 };

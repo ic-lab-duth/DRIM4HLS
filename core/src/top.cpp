@@ -6,6 +6,7 @@
 #include "drim4hls.h"
 
 #include <mc_scverify.h>
+#include <ac_int.h>
 
 class Top: public sc_module {
     public:
@@ -49,6 +50,8 @@ class Top: public sc_module {
     dmem_in_t dmem_din;
 
     const std::string testing_program;
+    
+    int wait_stalls;
 
     SC_CTOR(Top);
     Top(const sc_module_name &name, const std::string &testing_program): 
@@ -96,10 +99,12 @@ class Top: public sc_module {
             imem_din = fe2imem_ch.Pop();
 
             unsigned int addr_aligned = imem_din.instr_addr >> 2;
+			//std::cout << "imem addr= " << addr_aligned << endl;
             
             imem_dout.instr_data = imem[addr_aligned];
 			
             unsigned int random_stalls = (rand() % 2) + 1;
+            //unsigned int random_stalls = 1;
             wait(random_stalls);
 
             imem2de_ch.Push(imem_dout);
@@ -112,29 +117,33 @@ class Top: public sc_module {
         DMEM_RST: {
             wb2dmem_ch.ResetRead();
             dmem2wb_ch.ResetWrite();
-
+			wait_stalls = 0;
             wait();
         }
         DMEM_BODY: while (true) {
             dmem_din = wb2dmem_ch.Pop();
             unsigned int addr = dmem_din.data_addr;
-
-            unsigned int random_stalls = (rand() % 8) + 1;
+			//std::cout << "dmem addr= " << addr << endl;
+            unsigned int random_stalls = (rand() % 25) + 1;
+            
             //std::cout << "wait=" << random_stalls << endl;
+            //unsigned int random_stalls = 15;
+            wait_stalls += random_stalls;
             wait(random_stalls);
-             
+            std::cout << "wait= " << random_stalls << endl;
+            
             if (dmem_din.read_en) {
-
+				std::cout << "dmem read" << endl;
                 dmem_dout.data_out = dmem[addr];
                 dmem2wb_ch.Push(dmem_dout);
             } else if (dmem_din.write_en) {
-
+				std::cout << "dmem write" << endl;
                 dmem[addr] = dmem_din.data_in;
                 dmem_dout.data_out = dmem_din.data_in;
             }
 
             // REMOVE
-            //std::cout << "dmem[" << addr << "]=" << dmem[addr] << endl;
+            std::cout << "dmem[" << addr << "]=" << dmem[addr] << endl;
             wait();
         }
 
@@ -146,7 +155,8 @@ class Top: public sc_module {
         load_program.open(testing_program, std::ifstream:: in );
         unsigned index;
         unsigned address;
-
+        unsigned data;
+        
         while (load_program >> std::hex >> address) {
 
             index = address >> 2;
@@ -155,7 +165,8 @@ class Top: public sc_module {
                 sc_stop();
                 return;
             }
-            load_program >> std::hex >> imem[index];
+            load_program >> data;
+            imem[index] = (ac_int<32, false>) data;
             std::cout << "imem[" << index << "]=" << imem[index] << endl;
             dmem[index] = imem[index];
         }
@@ -177,6 +188,7 @@ class Top: public sc_module {
         for (dmem_index = 0; dmem_index < 400; dmem_index++) {
             std::cout << "dmem[" << dmem_index << "]=" << dmem[dmem_index] << endl;
         }
+        std::cout << "wait_stalls " << wait_stalls << endl;
 
         long icount_end, j_icount_end, b_icount_end, m_icount_end, o_icount_end, pre_b_icount_end;
 
@@ -206,9 +218,9 @@ int sc_main(int argc, char * argv[]) {
     //     return -1;
     // }
 
-    std::string testing_program = argv[1];
+    //std::string testing_program = argv[1];
     // USE IN QUESTASIM
-    //std::string testing_program = "/home/dpatsidis/Desktop/DRIM4HLS/examples/binary_search/hello.txt";
+    std::string testing_program = "/home/dpatsidis/Desktop/clean_repo/core/examples/fibonacci/fibonacci.txt";
 
     Top top("top", testing_program);
     sc_start();
