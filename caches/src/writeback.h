@@ -187,13 +187,11 @@ SC_MODULE(writeback) {
                 {
                 case CACHE_HIT:
                     dmem_data = dcache_out.data;
-                    //dmem_data_offset = dmem_data.range(offset*DATA_WIDTH + DATA_WIDTH - 1, offset*DATA_WIDTH);
-					
-                    for (int i = 0; i < DCACHE_LINE; i++) {
-						if (i >= offset*DATA_WIDTH && i <= offset*DATA_WIDTH + DATA_WIDTH - 1) {
-							dmem_data_offset[j] = dmem_data[i];
-							j++;
-						}
+                    
+                    #pragma unroll yes
+					for (int i = 0; i < DATA_WIDTH; i++) {
+						int index_word = offset*DATA_WIDTH + i;
+						dmem_data_offset[i] = dmem_data[index_word];
 					}
                     
                     if (cache_tag[0][0].dirty && input.st != NO_STORE && cache_tag[0][0].tag != tag) {
@@ -228,12 +226,11 @@ SC_MODULE(writeback) {
 					
                     dmem_din = dmem_out.Pop();
                     dmem_data = dmem_din.data_out;
-					//dmem_data_offset = dmem_data.range(offset*DATA_WIDTH + DATA_WIDTH - 1, offset*DATA_WIDTH);
-                    for (int i = 0; i < DCACHE_LINE; i++) {
-						if (i >= offset*DATA_WIDTH && i <= offset*DATA_WIDTH + DATA_WIDTH - 1) {
-							dmem_data_offset[j] = dmem_data[i];
-							j++;
-						}
+					
+                    #pragma unroll yes
+					for (int i = 0; i < DATA_WIDTH; i++) {
+						int index_word = offset*DATA_WIDTH + i;
+						dmem_data_offset[i] = dmem_data[index_word];
 					}
 
                     dmem_dout.data_in = cache_data[0][DCACHE_WAYS - 1].data;
@@ -354,13 +351,10 @@ SC_MODULE(writeback) {
                     break; // NO_STORE
                 }
                 
-				//dmem_data.set_slc(offset*DATA_WIDTH, dmem_data_offset);
-				int j = 0;
-				for (int i = 0; i < DCACHE_LINE; i++) {
-					if (i >= offset*DATA_WIDTH && i <= offset*DATA_WIDTH + DATA_WIDTH - 1) {
-						dmem_data[i] = dmem_data_offset[j];
-						j++;
-					}
+				#pragma unroll yes
+				for (int i = 0; i < DATA_WIDTH; i++) {
+					int index_word = offset*DATA_WIDTH + i;
+					dmem_data[index_word] = dmem_data_offset[i];
 				}
 				
                 if (dcache_out.hit) {

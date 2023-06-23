@@ -209,13 +209,10 @@ SC_MODULE(fetch) {
 				case CACHE_HIT:
                     imem_data = icache_out.data;
                     
-                    //imem_data_offset = (sc_uint < XLEN >) imem_data.range(offset*DATA_WIDTH + DATA_WIDTH - 1, offset*DATA_WIDTH);
-                    
-                    for (int i = 0; i < ICACHE_LINE; i++) {
-						if (i >= offset*DATA_WIDTH && i <= offset*DATA_WIDTH + DATA_WIDTH - 1) {
-							imem_data_offset[j] = imem_data[i];
-							j++;
-						}
+                    #pragma unroll yes
+					for (int i = 0; i < DATA_WIDTH; i++) {
+						int index = offset*DATA_WIDTH + i;
+						imem_data_offset[i] = imem_data[index];
 					}
                     
                     fe_out.instr_data = imem_data_offset;
@@ -228,13 +225,12 @@ SC_MODULE(fetch) {
 					
                     imem_data = imem_out.instr_data;
                     
-                    for (int i = 0; i < ICACHE_LINE; i++) {
-						if (i >= offset*DATA_WIDTH && i <= offset*DATA_WIDTH + DATA_WIDTH - 1) {
-							imem_data_offset[j] = imem_data[i];
-							j++;
-						}
+                    #pragma unroll yes
+					for (int i = 0; i < DATA_WIDTH; i++) {
+						int index = offset*DATA_WIDTH + i;
+						imem_data_offset[i] = imem_data[index];
 					}
-					//imem_data_offset = (sc_uint < XLEN >) imem_data.range(offset*DATA_WIDTH + DATA_WIDTH - 1, offset*DATA_WIDTH);
+                    
 					fe_out.instr_data = imem_data_offset;
 					
 					icache_buffer_addr[0][ICACHE_WAYS - 1].range(0, 0) = 1;
