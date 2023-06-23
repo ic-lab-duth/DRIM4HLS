@@ -1,6 +1,6 @@
 # DRIM4HLS: A 32-bit RISC-V processor designed for High Level Synthesis
 
-DRIM4HLS is the first model of a 32b RISC-V processor designed with SystemC and [Matchlib's Connections](https://github.com/hlslibs/matchlib_connections "Connections"). The SystemC model is synthesized with High-level synthesis achieving an full-throughput pipeline dataflow. The baseline functionality of the processor is based on the [HL5 core](https://github.com/sld-columbia/hl5 "HL5") from Columbia University. DRIM4HLS was synthesized using Mentor's Catapult 2021 and verified with QuestaSim 2019.3_1. The RTL produced was also validated in an FPGA prototype using Xilinx Nexy 7 board.
+DRIM4HLS is the first model of a 32b RISC-V processor designed with SystemC and [Matchlib's Connections](https://github.com/hlslibs/matchlib_connections "Connections"). The SystemC model is synthesized with High-level synthesis achieving an full-throughput pipeline dataflow. The baseline functionality of the processor is based on the [HL5 core](https://github.com/sld-columbia/hl5 "HL5") from Columbia University. DRIM4HLS was synthesized using Mentor's Catapult `2021.1.1` and verified with QuestaSim `2019.3_1`. The RTL produced was also validated in an FPGA prototype using Xilinx Nexy 7 board.
 
 The organization of the SystemC model of DRIM4HLS is shown in the following figure
 
@@ -28,7 +28,7 @@ The repository contains various versions of the processor. Check the respective 
 
 In order to simulate DRIM4HLS you would need gcc (testted on version 9.4) and SystemC (tested on version 2.3.3). You can download SystemC from [here](https://www.accellera.org/downloads/standards/systemc "SystemC download"). Also you would need the header-only libraries of [Connections](https://github.com/hlslibs/matchlib_connections "Connections download"), [AC_SIMUTILS](https://github.com/hlslibs/ac_simutils) and [AC_TYPES](https://github.com/hlslibs/ac_types). 
 
-To synthesize the design to RTL you would need a license for Catapult HLS. Also for simulating RTL any logic-level simulator will suffice. We synthesized the processor with Catapult HLS 2021 and simulatd the RTL with QuestaSim 2019.3_1. 
+To synthesize the design to RTL you would need a license for Catapult HLS. Also for simulating RTL any logic-level simulator will suffice. We synthesized the processor with Catapult HLS `2021.1.1` and simulatd the RTL with QuestaSim `2019.3_1`. 
 
 The model of DRIM4HLS already incorporates all the pieces needed to run the post-synthesis SCVerify flow of Catapult for automatic RTL verification. 
 

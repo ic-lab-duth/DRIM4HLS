@@ -1,5 +1,5 @@
 options set Input/CppStandard c++11
-set_working_dir /home/dpatsidis/Desktop/clean_repo/floating_point
+set_working_dir .
 solution file add ./src/writeback.h
 solution file add ./src/fetch.h
 solution file add ./src/execute.h
@@ -8,7 +8,7 @@ solution file add ./src/fast_float.h
 solution file add ./src/drim4hls.h
 solution file add ./src/decode.h
 solution file add ./src/execute_fp.h
-solution file set /home/dpatsidis/Desktop/clean_repo/floating_point/src/top.cpp -exclude true
+solution file set ./src/top.cpp -exclude true
 go compile
 solution library add nangate-45nm_beh -- -rtlsyntool OasysRTL -vendor Nangate -technology 045nm
 solution library add ram_nangate-45nm-dualport_beh
